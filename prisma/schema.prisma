@@ -1,0 +1,159 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+model User {
+  id             Int         @id @default(autoincrement())
+  username       String
+  password       String
+  no_telp        String
+  alamat         String
+  is_blacklisted Boolean     @default(false)
+
+  role_id        Int
+  role           Role        @relation(fields: [role_id], references: [id])
+
+  artikelComments Artikel_Comment[]
+  keranjang       Keranjang[]
+  transaksi       Transaksi[]
+  penalti         Penalti[]
+  review          Review[]
+  sewaReq         Sewa_req[]
+}
+
+model Role {
+  id         Int    @id @default(autoincrement())
+  role_name  String
+  deskripsi  String
+
+  users      User[]
+}
+
+model Artikel {
+  id              Int              @id @default(autoincrement())
+  judul           String
+  konten          String
+  foto            String
+  tanggal_publish DateTime
+
+  id_tags         Int
+  tags            Tags             @relation(fields: [id_tags], references: [tid])
+
+  artikelComments Artikel_Comment[]
+}
+
+model Artikel_Comment {
+  id         Int     @id @default(autoincrement())
+  id_artikel Int
+  id_user    Int
+  komen_teks String
+
+  artikel    Artikel @relation(fields: [id_artikel], references: [id])
+  user       User    @relation(fields: [id_user], references: [id])
+}
+
+model Tags {
+  tid      Int       @id @default(autoincrement())
+  nama     String
+
+  artikels Artikel[]
+}
+
+model Barang {
+  id                    Int         @id @default(autoincrement())
+  nama_barang           String
+  harga_barang          Float
+  stok                  Int
+  foto                  String
+  harga_pinalti_per_jam Float
+
+  kategori_id           Int
+  kategori              Kategori    @relation(fields: [kategori_id], references: [id])
+
+  keranjang             Keranjang[]
+  penalti               Penalti[]
+  review                Review[]
+  sewaItems             Sewa_items[]
+}
+
+model Kategori {
+  id      Int      @id @default(autoincrement())
+  nama    String
+
+  barang  Barang[]
+}
+
+model Keranjang {
+  id        Int     @id @default(autoincrement())
+  id_user   Int
+  id_barang Int
+  jumlah    Int
+  subtotal  Float
+
+  user      User    @relation(fields: [id_user], references: [id])
+  barang    Barang  @relation(fields: [id_barang], references: [id])
+}
+
+model Transaksi {
+  id                 Int      @id @default(autoincrement())
+  id_user            Int
+  total_pembayaran   Float
+  tanggal_transaksi  DateTime
+  status             String
+
+  user               User     @relation(fields: [id_user], references: [id])
+}
+
+model Penalti {
+  id           Int     @id @default(autoincrement())
+  id_barang    Int
+  id_user      Int
+  total_bayar  Float
+
+  barang       Barang  @relation(fields: [id_barang], references: [id])
+  user         User    @relation(fields: [id_user], references: [id])
+}
+
+model Review {
+  id             Int      @id @default(autoincrement())
+  id_user        Int
+  id_barang      Int
+  rating         Int
+  tanggal_review DateTime
+
+  user           User     @relation(fields: [id_user], references: [id])
+  barang         Barang   @relation(fields: [id_barang], references: [id])
+}
+
+model Sewa_req {
+  id                Int          @id @default(autoincrement())
+  id_user           Int
+  start_date        DateTime
+  end_date          DateTime
+  status            String
+  dikembalikan_pada DateTime?
+
+  user              User         @relation(fields: [id_user], references: [id])
+  sewaItems         Sewa_items[]
+}
+
+model Sewa_items {
+  id           Int        @id @default(autoincrement())
+  id_sewa_req  Int
+  id_barang    Int
+  jumlah       Int
+  harga_total  Float
+
+  sewa_req     Sewa_req   @relation(fields: [id_sewa_req], references: [id])
+  barang       Barang     @relation(fields: [id_barang], references: [id])
+}
