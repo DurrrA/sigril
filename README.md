@@ -35,11 +35,18 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
+## Configuration GUIDE
 
 run in your local
 ```bash
 npm install 
 #and
+```
+
+remember to install prisma 
+```bash
+npm install @prisma/client
+npm install prisma --save-dev
 ```
 
 connect with your local db which is mysql
