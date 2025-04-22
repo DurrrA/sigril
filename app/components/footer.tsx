@@ -27,7 +27,7 @@ const Footer = () => {
                 <a href="/produk" className="hover:text-gray-300">Produk</a>
               </li>
               <li>
-                <a href="/kontak-kami" className="hover:text-gray-300">Kontak Kami</a>
+                <a href="/kontak" className="hover:text-gray-300">Kontak Kami</a>
               </li>
               <li>
                 <a href="/tentang-kami" className="hover:text-gray-300">Tentang Kami</a>
