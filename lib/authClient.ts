@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
-export function loginIsRequiredClient() {
+export function useLoginIsRequiredClient() {
   const session = useSession();
   const router = useRouter();
 

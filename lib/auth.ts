@@ -1,5 +1,5 @@
 
-import { NextAuthOptions, getServerSession } from "next-auth";
+import { NextAuthOptions, getServerSession  } from "next-auth";
 // import { useSession } from "next-auth/react";
 import jwt from "jsonwebtoken";
 import { redirect} from "next/navigation";
@@ -11,6 +11,12 @@ import GoogleProvider from "next-auth/providers/google";
 import prisma from "./prisma";
 
 
+
+declare module "next-auth" {
+  interface Session {
+    accessToken?: string;
+  }
+}
 
 export const authConfig: NextAuthOptions = {
   providers: [
@@ -164,7 +170,7 @@ export const authConfig: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      session.accessToken = token.accessToken;
+      session.accessToken = token.accessToken as string | undefined;
       return session;
     },
   },
