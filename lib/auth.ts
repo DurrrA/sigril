@@ -182,3 +182,13 @@ export async function loginIsRequiredServer() {
   const session = await getServerSession(authConfig);
   if (!session) return redirect("/");
 }
+
+export async function isAdmin() {
+  const session = await getServerSession(authConfig);
+  if (!session) return redirect("/");
+  const user = await prisma.user.findUnique({
+    where: { email: session.user?.email ?? undefined },
+  });
+  if (user?.role_id !== 1) 
+    return redirect("/"); // harusnya pop up modal anda bukan admin
+}
