@@ -14,10 +14,9 @@ const barangSchema = z.object({
     harga_pinalti_per_jam: z.number(),
 });
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const authCheck = await requireAdmin();
     if (!authCheck.isAuthenticated) {
-      // Create a URL object using the current request URL as base
       return NextResponse.redirect(new URL('/forbidden', request.url));
     }
     if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
@@ -28,7 +27,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const validatedData = barangSchema.parse(body); 
         const foto = validatedData.foto || "image/file.svg"; // Set foto to null if not provided
         const updatedBarang = await prisma.barang.update({
-            where: { id: Number(params.id) },
+            where: { id: Number((await params).id) },
             data: {
                 nama: validatedData.nama,
                 harga: validatedData.harga,
@@ -57,7 +56,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                 kategori: updatedBarang.kategori
             }
         };
-
         return NextResponse.json(response, { status: 200 });
     } catch (error) {
         console.error("Error updating barang:", error);
@@ -74,7 +72,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const authCheck = await requireAdmin();
     if (!authCheck.isAuthenticated) {
       // Create a URL object using the current request URL as base
@@ -85,7 +83,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
     try {
         const deletedBarang = await prisma.barang.delete({
-            where: { id: Number(params.id) },
+            where: { id: Number((await params).id) },
         });
 
         return NextResponse.json(
@@ -102,19 +100,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 }
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> } 
   ) {
-    const authCheck = await requireAdmin();
-    if (!authCheck.isAuthenticated) {
-      // Create a URL object using the current request URL as base
-      return NextResponse.redirect(new URL('/forbidden', request.url));
-    }
-    if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
-      return NextResponse.redirect(new URL('/forbidden', request.url));
-    }
     try {
-      const barang = await prisma.barang.findUnique({
-        where: { id: Number(params.id) },
+      const id = Number((await context.params).id);
+      const barang = await prisma.barang.findUnique({ 
+        where: { id }, 
         include: {
           kategori: true,
         },

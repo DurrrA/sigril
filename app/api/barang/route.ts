@@ -83,14 +83,6 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const authCheck = await requireAdmin();
-    if (!authCheck.isAuthenticated) {
-      // Create a URL object using the current request URL as base
-      return NextResponse.redirect(new URL('/forbidden', request.url));
-    }
-    if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
-      return NextResponse.redirect(new URL('/forbidden', request.url));
-    }
 
     const { searchParams } = new URL(request.url);
     const kategoriId = searchParams.get('kategori');

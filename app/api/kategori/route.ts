@@ -1,4 +1,4 @@
-import { loginIsRequiredServer, isAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -8,16 +8,17 @@ const kategoriSchema = z.object({
 });
 
 export async function GET() {
-    await loginIsRequiredServer();
-    await isAdmin();
     try {
-        const response = {
-            message: "Kategori fetched successfully",
-            data: await prisma.kategori.findMany()
+        const kategori = await prisma.kategori.findMany({
+            include: {
+                barang: true,
+            },
+        });
 
-        }
-
-        return NextResponse.json(response, { status: 200 });
+        return NextResponse.json(
+            { message: "Kategori fetched successfully", data: kategori },
+            { status: 200 }
+        );
     } catch (error) {
         console.error("Error fetching kategori:", error);
         return NextResponse.json(
@@ -28,8 +29,14 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-    await loginIsRequiredServer();
-    await isAdmin();
+    const authCheck = await requireAdmin();
+    if (!authCheck.isAuthenticated) {
+        // Create a URL object using the current request URL as base
+        return NextResponse.redirect(new URL('/forbidden', req.url));
+    }
+    if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
+        return NextResponse.redirect(new URL('/forbidden', req.url));
+    }
     try {
         const body = await req.json();
         const validatedData = kategoriSchema.parse(body); // Validate the incoming data

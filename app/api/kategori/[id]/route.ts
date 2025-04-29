@@ -8,7 +8,7 @@ const kategoriSchema = z.object({
   nama: z.string().min(1, "Name is required"),
 });
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authCheck = await requireAdmin();
   if (!authCheck.isAuthenticated) {
     // Create a URL object using the current request URL as base
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
   try {
     const kategori = await prisma.kategori.findUnique({
-      where: { id: Number(params.id) },
+      where: { id: Number((await params).id) },
     });
 
     if (!kategori) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const authCheck = await requireAdmin();
     if (!authCheck.isAuthenticated) {
         // Create a URL object using the current request URL as base
@@ -56,7 +56,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const validatedData = kategoriSchema.parse(body); // Validate the incoming data
     
         const updatedKategori = await prisma.kategori.update({
-        where: { id: Number(params.id) },
+        where: { id: Number((await params).id) },
         data: {
             nama: validatedData.nama,
         },
@@ -81,7 +81,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const authCheck = await requireAdmin();
     if (!authCheck.isAuthenticated) {
         // Create a URL object using the current request URL as base
@@ -92,7 +92,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
     try {
         const deletedKategori = await prisma.kategori.delete({
-            where: { id: Number(params.id) },
+            where: { id: Number((await params).id) },
         });
 
         return NextResponse.json(

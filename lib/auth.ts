@@ -1,6 +1,6 @@
 
+
 import { NextAuthOptions, getServerSession  } from "next-auth";
-// import { useSession } from "next-auth/react";
 import jwt from "jsonwebtoken";
 import { redirect} from "next/navigation";
 import bcrypt from "bcrypt";
@@ -18,7 +18,7 @@ declare module "next-auth" {
   }
 }
 
-export const authConfig: NextAuthOptions = {
+export  const authConfig: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -87,6 +87,7 @@ export const authConfig: NextAuthOptions = {
               role_id: 1,
               no_telp: "",
               alamat: "",
+              provider: "google", // Store the provider information
             },
           });
         }
@@ -190,10 +191,10 @@ export async function isAdmin() {
     where: { email: session.user?.email ?? undefined },
   });
   if (user?.role_id !== 1) 
-    return redirect("/"); // harusnya pop up modal anda bukan admin
+    return redirect("/"); 
 }
 
-// Define return type for authentication functions
+
 type AuthResult = 
   | { isAuthenticated: false; error: string }
   | { isAuthenticated: true; isAuthorized: false; error: string }
@@ -224,7 +225,7 @@ export async function requireAdmin(): Promise<AuthResult> {
     where: { email: session?.user?.email ?? undefined },
   });
   
-  if (user?.role_id !== 2) { // Assuming 1 is admin
+  if (user?.role_id !== 2) { 
     return {
       isAuthenticated: true,
       isAuthorized: false,

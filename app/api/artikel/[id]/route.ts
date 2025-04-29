@@ -1,16 +1,18 @@
-'use server';
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma"; // Use singleton instance
+import { requireAdmin } from "@/lib/auth";
 
-import { PrismaClient } from "@prisma/client";
-import { NextResponse } from "next/server";
-import { loginIsRequiredServer } from "@/lib/auth";
-
-const prisma = new PrismaClient();
-
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+// Fix GET handler signature
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
+    const id = parseInt((await context.params).id);
+    
     const artikel = await prisma.artikel.findUnique({
       where: {
-        id: parseInt(params.id),
+        id,
         is_deleted: false,
       },
       include: {
@@ -25,19 +27,34 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     return NextResponse.json(artikel);
   } catch (error) {
+    console.error("Error fetching artikel:", error);
     return NextResponse.json({ error: "Gagal mengambil data artikel" }, { status: 500 });
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  await loginIsRequiredServer();
+// Fix PUT handler signature
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const authCheck = await requireAdmin();
+  
+  // Return JSON responses instead of redirects for API routes
+  if (!authCheck.isAuthenticated) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+  
+  if (!authCheck.isAuthorized) {
+    return NextResponse.json({ error: "Admin privileges required" }, { status: 403 });
+  }
 
   try {
-    const body = await req.json();
+    const id = parseInt((await context.params).id);
+    const body = await request.json();
     const { judul, konten, foto, id_tags, is_published, publishAt } = body;
 
     const artikel = await prisma.artikel.update({
-      where: { id: parseInt(params.id) },
+      where: { id },
       data: {
         judul,
         konten,
@@ -51,16 +68,32 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
     return NextResponse.json(artikel);
   } catch (error) {
+    console.error("Error updating artikel:", error);
     return NextResponse.json({ error: "Gagal update artikel" }, { status: 500 });
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  await loginIsRequiredServer();
+// Fix DELETE handler signature
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const authCheck = await requireAdmin();
+  
+  // Return JSON responses instead of redirects for API routes
+  if (!authCheck.isAuthenticated) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+  
+  if (!authCheck.isAuthorized) {
+    return NextResponse.json({ error: "Admin privileges required" }, { status: 403 });
+  }
 
   try {
+    const id = parseInt((await context.params).id);
+    
     await prisma.artikel.update({
-      where: { id: parseInt(params.id) },
+      where: { id },
       data: {
         is_deleted: true,
         updatedAt: new Date(),
@@ -69,6 +102,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
     return NextResponse.json({ message: "Artikel berhasil dihapus" });
   } catch (error) {
+    console.error("Error deleting artikel:", error);
     return NextResponse.json({ error: "Gagal menghapus artikel" }, { status: 500 });
   }
 }

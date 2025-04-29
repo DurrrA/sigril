@@ -145,6 +145,7 @@ model transaksi {
   id_user           Int
   total_pembayaran  Float
   tanggal_transaksi DateTime
+  bukti_pembayaran  String
   status            String
   user              user     @relation(fields: [id_user], references: [id], map: "Transaksi_id_user_fkey")
 

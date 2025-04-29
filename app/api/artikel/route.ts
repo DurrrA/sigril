@@ -2,15 +2,13 @@
 
 import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { loginIsRequiredServer } from "@/lib/auth";
-import { getServerSession } from "next-auth";
-import { authConfig } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 
 const prisma = new PrismaClient();
 
 export async function GET() {
   try {
-    const artikels = await prisma.artikel.findMany({
+    const artikel = await prisma.artikel.findMany({
       where: { is_deleted: false },
       include: {
         tags: true,
@@ -21,15 +19,25 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(artikels);
+    return NextResponse.json(
+        { message: "Artikel fetched successfully", data: artikel },
+        { status: 200 }
+    );
   } catch (error) {
+    console.error("Error fetching artikels:", error);
     return NextResponse.json({ error: "Gagal mengambil data artikel" }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
-  await loginIsRequiredServer();
-  const session = await getServerSession(authConfig);
+    const authCheck = await requireAdmin();
+        if (!authCheck.isAuthenticated) {
+            // Create a URL object using the current request URL as base
+            return NextResponse.redirect(new URL('/forbidden', request.url));
+        }
+        if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
+            return NextResponse.redirect(new URL('/forbidden', request.url));
+        }
 
   try {
     const body = await request.json();
@@ -46,8 +54,15 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(artikel);
+    return NextResponse.json(
+        {message : "Artikel created successfully", data: artikel},
+        { status: 201 }
+    );
   } catch (error) {
-    return NextResponse.json({ error: "Gagal membuat artikel" }, { status: 500 });
+    console.error("Error creating artikel:", error);
+    return NextResponse.json(
+        { error: "Gagal membuat artikel" },
+        { status: 500 }
+    );
   }
 }

@@ -42,6 +42,7 @@ export async function POST(req: Request) {
         is_blacklisted: false,
         remember_token: null,
         role_id: 1,
+        provider: 'credentials', // Assuming you want to set the provider as 'credentials'
       },
     });
 

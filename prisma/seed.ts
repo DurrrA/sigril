@@ -82,6 +82,9 @@ async function main() {
       })
     })
   )
+  const paymentImages = [
+    'payment.jpeg'
+  ]
 
   // 6) Transaksi (sum of sewa_items)
   await Promise.all(
@@ -96,6 +99,7 @@ async function main() {
           total_pembayaran: agg._sum.harga_total || 0,
           tanggal_transaksi: new Date(),
           status:           'PAID',
+          bukti_pembayaran: faker.helpers.arrayElement(paymentImages)
         },
       })
     })

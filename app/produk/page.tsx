@@ -21,19 +21,16 @@ async function getBarang(): Promise<BarangResponse> {
 export default async function ProdukPage() {
     const response = await getBarang();
     const barangList = response.data || [];
-    
-    // Group products by category
+
     const groupedByCategory = barangList.reduce((result, item) => {
         const categoryName = item.kategori.nama;
-        
-        // Find or create category group
+
         let categoryGroup = result.find(group => group.category === categoryName);
         if (!categoryGroup) {
             categoryGroup = { category: categoryName, products: [] };
             result.push(categoryGroup);
         }
-        
-        // Add product to its category group
+
         categoryGroup.products.push(item);
         
         return result;
@@ -55,7 +52,7 @@ export default async function ProdukPage() {
                                 description: barang.deskripsi
                             }))} 
                         />
-                    ) : (
+                        ) : (
                         <div>
                             <h2 className="text-2xl font-bold text-gray-800 mb-4">{category}</h2>
                             <p className="text-gray-500">Tidak ada barang untuk kategori ini.</p>

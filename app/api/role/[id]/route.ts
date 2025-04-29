@@ -9,7 +9,7 @@ const roleSchema = z.object({
   deskripsi: z.string().min(1, "Description is required")
 });
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authCheck = await requireAdmin();
   if (!authCheck.isAuthenticated) {
     // Create a URL object using the current request URL as base
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
   try {
     const role = await prisma.role.findUnique({
-      where: { id: Number(params.id) },
+      where: { id: Number((await params).id) },
     });
 
     if (!role) {
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }:{ params: Promise<{ id: string }> }) {
   const authCheck = await requireAdmin();
   if (!authCheck.isAuthenticated) {
     return NextResponse.redirect(new URL('/forbidden', request.url));
@@ -56,7 +56,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const validatedData = roleSchema.parse(body); 
 
     const updatedRole = await prisma.role.update({
-      where: { id: Number(params.id) },
+      where: { id: Number((await params).id) },
       data: {
         role_name: validatedData.role_name,
         deskripsi: validatedData.deskripsi,

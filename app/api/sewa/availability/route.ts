@@ -5,8 +5,8 @@ import { z } from "zod";
 // Define the schema for availability validation
 const availabilitySchema = z.object({
   id_barang: z.number(),
-  start_date: z.string(), // ISO date string
-  end_date: z.string(),   // ISO date string
+  start_date: z.string(), 
+  end_date: z.string(),   
 });
 
 export async function POST(req: Request) {
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         sewa_req: {
           start_date: { lte: new Date(validatedData.end_date) },
           end_date: { gte: new Date(validatedData.start_date) },
-          status: { not: "cancelled" }, // Exclude cancelled requests
+          status: { not: "cancelled" }, 
         },
       },
     });
