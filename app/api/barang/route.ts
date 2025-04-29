@@ -1,8 +1,9 @@
-import { loginIsRequiredServer, isAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
-
+import { NextRequest } from "next/server";
 
 const barangSchema = z.object({
   nama: z.string().min(1, "Name is required"),
@@ -15,11 +16,17 @@ const barangSchema = z.object({
   
 });
 
-export async function POST(req: Request) {
-  await loginIsRequiredServer();
-  await isAdmin();
+export async function POST(request: NextRequest) {
+  const authCheck = await requireAdmin();
+    if (!authCheck.isAuthenticated) {
+      // Create a URL object using the current request URL as base
+      return NextResponse.redirect(new URL('/forbidden', request.url));
+    }
+    if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
+      return NextResponse.redirect(new URL('/forbidden', request.url));
+    }
   try {
-    const body = await req.json();
+    const body = await request.json();
     const validatedData = barangSchema.parse(body); 
     const foto = validatedData.foto || "image/file.svg"; // Set foto to null if not provided
     const newBarang = await prisma.barang.create({
@@ -74,38 +81,49 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const barangList = await prisma.barang.findMany({
-      include: {
-        kategori: true, 
-      }
-    });
+    const authCheck = await requireAdmin();
+    if (!authCheck.isAuthenticated) {
+      // Create a URL object using the current request URL as base
+      return NextResponse.redirect(new URL('/forbidden', request.url));
+    }
+    if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
+      return NextResponse.redirect(new URL('/forbidden', request.url));
+    }
 
-    // Simplified response format
-    const response = {
-      message: "Data retrieved successfully",
-      data: barangList.map(item => ({
-        id: item.id,
-        stok: item.stok,
-        foto: item.foto,
-        harga_pinalti_per_jam: item.harga_pinalti_per_jam,
-        deskripsi: item.deskripsi,
-        kategori_id: item.kategori_id,
-        harga: item.harga,
-        nama: item.nama,
-        kategori: item.kategori
-      }))
-    };
+    const { searchParams } = new URL(request.url);
+    const kategoriId = searchParams.get('kategori');
+    const search = searchParams.get('search');
+    // Build the where clause based on query parameters
+    const whereClause: Prisma.barangWhereInput = {};
+
     
-    return NextResponse.json(response, { status: 200 });
+    if (kategoriId) {
+      whereClause.kategori_id = Number(kategoriId);
+    }
+    
+    if (search) {
+      whereClause.nama = {
+        contains: search
+      };
+    }
+    
+    const barangList = await prisma.barang.findMany({
+      where: whereClause,
+      include: {
+        kategori: true,
+      },
+    });
+    
+    return NextResponse.json({
+      message: "Data retrieved successfully",
+      data: barangList
+    });
   } catch (error) {
     console.error("Error retrieving barang:", error);
     return NextResponse.json(
-      { 
-        message: "Failed to retrieve barang",
-        data: []
-      },
+      { message: "Failed to retrieve barang", data: [] },
       { status: 500 }
     );
   }

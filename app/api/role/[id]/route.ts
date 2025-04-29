@@ -1,58 +1,113 @@
+import { requireAdmin } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma"; // Import your Prisma client
+import prisma from "@/lib/prisma";
+import { z } from "zod";
+import { NextRequest } from "next/server";
 
-// Update a role by ID
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const { id } = params;
-  const { role_name, deskripsi } = await req.json();
+const roleSchema = z.object({
+  role_name: z.string().min(1, "Name is required"),
+  deskripsi: z.string().min(1, "Description is required")
+});
 
-  if (!id || !role_name) {
-    return NextResponse.json(
-      { error: "Role ID and name are required" },
-      { status: 400 }
-    );
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  const authCheck = await requireAdmin();
+  if (!authCheck.isAuthenticated) {
+    // Create a URL object using the current request URL as base
+    return NextResponse.redirect(new URL('/forbidden', request.url));
   }
-
+  if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
+    return NextResponse.redirect(new URL('/forbidden', request.url));
+  }
   try {
-    const updatedRole = await prisma.role.update({
-      where: { id: parseInt(id) },
-      data: { role_name, deskripsi },
+    const role = await prisma.role.findUnique({
+      where: { id: Number(params.id) },
     });
 
-    return NextResponse.json(updatedRole, { status: 200 });
-  } catch (error) {
-    console.error("Error updating role:", error);
+    if (!role) {
+      return NextResponse.json(
+        { message: "Role not found" },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Failed to update role" },
+      { message: "Role fetched successfully", data: role },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error fetching role:", error);
+    return NextResponse.json(
+      { message: "Failed to fetch role" },
       { status: 500 }
     );
   }
 }
 
-// Delete a role by ID
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const { id } = params;
-
-  if (!id) {
-    return NextResponse.json(
-      { error: "Role ID is required" },
-      { status: 400 }
-    );
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  const authCheck = await requireAdmin();
+  if (!authCheck.isAuthenticated) {
+    return NextResponse.redirect(new URL('/forbidden', request.url));
   }
-
+  if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
+    return NextResponse.redirect(new URL('/forbidden', request.url));
+  }
   try {
-    await prisma.role.delete({
-      where: { id: parseInt(id) },
+    const body = await request.json();
+    const validatedData = roleSchema.parse(body); 
+
+    const updatedRole = await prisma.role.update({
+      where: { id: Number(params.id) },
+      data: {
+        role_name: validatedData.role_name,
+        deskripsi: validatedData.deskripsi,
+      },
     });
 
     return NextResponse.json(
-      { message: "Role deleted successfully" },
+      { message: "Role updated successfully", data: updatedRole },
       { status: 200 }
     );
   } catch (error) {
+    console.error("Error updating role:", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { message: error.errors },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(
+      { message: "Failed to update role" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const authCheck = await requireAdmin();
+  if (!authCheck.isAuthenticated) {
+    // Create a URL object using the current request URL as base
+    return NextResponse.redirect(new URL('/forbidden', request.url));
+  }
+  if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
+    return NextResponse.redirect(new URL('/forbidden', request.url));
+  }
+  try {
+    const deletedRole = await prisma.role.delete({
+      where: { id: Number(params.id) },
+    });
+
+    return NextResponse.json(
+      { message: "Role deleted successfully", data: deletedRole },
+      { status: 200 }
+    );
+  }
+  catch (error) {
     console.error("Error deleting role:", error);
     return NextResponse.json(
-      { error: "Failed to delete role" },
+      { message: "Failed to delete role" },
       { status: 500 }
     );
   }

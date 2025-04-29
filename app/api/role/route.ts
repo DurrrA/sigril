@@ -1,40 +1,79 @@
-'use server';
+import { requireAdmin } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { z } from "zod";
+import { NextRequest } from "next/server";
 
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+const roleSchema = z.object({
+  role_name: z.string().min(1, "Name is required"),
+  deskripsi: z.string().min(1, "Description is required")
+});
 
-// Get all roles
-export async function GET() {
+export async function GET(request: NextRequest){
+  const authCheck = await requireAdmin();
+  if (!authCheck.isAuthenticated) {
+    return NextResponse.redirect(new URL('/forbidden', request.url));
+  }
+  if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
+    return NextResponse.redirect(new URL('/forbidden', request.url));
+  }
   try {
-    const roles = await prisma.role.findMany();
-    return NextResponse.json(roles);
+    const role = await prisma.role.findMany({
+      include: {
+        user: true,
+      },
+    });
+
+    return NextResponse.json(
+      { message: "Role fetched successfully", data: role },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to fetch roles' }, { status: 500 });
+    console.error("Error fetching role:", error);
+    return NextResponse.json(
+      { message: "Failed to fetch role" },
+      { status: 500 }
+    );
   }
 }
 
-// Create a new role
-export async function POST(req: Request) {
-  try {
-    // verifyAuth(req); // if you want protected routes
-    const body = await req.json();
-    const { name, deskripsi } = body;
+export async function POST(request: NextRequest) {
+  const authCheck = await requireAdmin();
 
-    if (!name || !deskripsi) {
-      return NextResponse.json({ message: 'Name is required' }, { status: 400 });
-    }
+  if (!authCheck.isAuthenticated) {
+    return NextResponse.redirect(new URL('/forbidden', request.url));
+  }
+  
+  if (authCheck.isAuthenticated && !authCheck.isAuthorized) {
+    return NextResponse.redirect(new URL('/forbidden', request.url));
+  }
+
+  try {
+    const body = await request.json();
+    const validatedData = roleSchema.parse(body); 
 
     const newRole = await prisma.role.create({
-      data: { 
-        role_name: name,
-        deskripsi
-       },
+      data: {
+        role_name: validatedData.role_name,
+        deskripsi: validatedData.deskripsi,
+      },
     });
 
-    return NextResponse.json(newRole, { status: 201 });
+    return NextResponse.json(
+      { message: "Role created successfully", data: newRole },
+      { status: 201 }
+    );
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to create role' }, { status: 500 });
+    console.error("Error creating role:", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { message: error.errors },
+        { status: 422 }
+      );
+    }
+    return NextResponse.json(
+      { message: "Failed to create role" },
+      { status: 500 }
+    );
   }
 }

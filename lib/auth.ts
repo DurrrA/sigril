@@ -192,3 +192,48 @@ export async function isAdmin() {
   if (user?.role_id !== 1) 
     return redirect("/"); // harusnya pop up modal anda bukan admin
 }
+
+// Define return type for authentication functions
+type AuthResult = 
+  | { isAuthenticated: false; error: string }
+  | { isAuthenticated: true; isAuthorized: false; error: string }
+  | { isAuthenticated: true; isAuthorized: true };
+
+export async function requireAuth(): Promise<{ isAuthenticated: boolean; error?: string }> {
+  const session = await getServerSession(authConfig);
+  if (!session) {
+    return {
+      isAuthenticated: false,
+      error: "Authentication required"
+    };
+  }
+  return { isAuthenticated: true };
+}
+
+export async function requireAdmin(): Promise<AuthResult> {
+  const authCheck = await requireAuth();
+  if (!authCheck.isAuthenticated) {
+    return {
+      isAuthenticated: false,
+      error: authCheck.error || "Authentication required"
+    };
+  }
+  
+  const session = await getServerSession(authConfig);
+  const user = await prisma.user.findUnique({
+    where: { email: session?.user?.email ?? undefined },
+  });
+  
+  if (user?.role_id !== 2) { // Assuming 1 is admin
+    return {
+      isAuthenticated: true,
+      isAuthorized: false,
+      error: "Admin privileges required"
+    };
+  }
+  
+  return {
+    isAuthenticated: true,
+    isAuthorized: true
+  };
+}
