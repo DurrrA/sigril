@@ -53,6 +53,6 @@ connect with your local db which is mysql
 create new .env by edit .env.example and configure with your local mysql
 run this to migrate table to your local db
 ```bash
-npx prisma migrate --name init
+npx prisma migrate 
 ```
 

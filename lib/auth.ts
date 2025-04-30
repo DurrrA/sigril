@@ -1,5 +1,4 @@
 
-
 import { NextAuthOptions, getServerSession  } from "next-auth";
 import jwt from "jsonwebtoken";
 import { redirect} from "next/navigation";
@@ -9,7 +8,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
 import prisma from "./prisma";
-
 
 
 declare module "next-auth" {
