@@ -3,7 +3,7 @@
 import { NextAuthOptions, getServerSession  } from "next-auth";
 import jwt from "jsonwebtoken";
 import { redirect} from "next/navigation";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
