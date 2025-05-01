@@ -7,15 +7,19 @@ import Link from "next/link";
 const Navbar = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false); // State untuk status login
   const [dropdownOpen, setDropdownOpen] = useState(false); // State untuk dropdown
+  const [isLoggingOut, setIsLoggingOut] = useState(false); // State untuk animasi logout
 
   const toggleDropdown = () => {
     setDropdownOpen((prev) => !prev);
   };
 
   const handleLogout = () => {
-    // Logika logout
-    setIsLoggedIn(false);
-    setDropdownOpen(false);
+    setIsLoggingOut(true); // Memulai animasi logout
+    setTimeout(() => {
+      setIsLoggedIn(false);
+      setDropdownOpen(false);
+      setIsLoggingOut(false); // Menghentikan animasi logout
+    }, 500); // Durasi animasi
   };
 
   return (
@@ -96,9 +100,9 @@ const Navbar = () => {
                     </Link>
                     <button
                       onClick={handleLogout}
-                      className="flex items-center w-full text-left px-4 py-2 text-gray-800 hover:bg-[#3528AB] hover:text-white"
+                      className={`flex items-center w-full text-left px-4 py-2 text-gray-800 hover:bg-[#3528AB] hover:text-white ${isLoggingOut ? "bg-gray-300" : ""}`}
                     >
-                      <i className="fas fa-sign-out-alt mr-2"></i> Logout
+                      <i className="fas fa-sign-out-alt mr-2"></i> {isLoggingOut ? 'Logging out...' : 'Logout'}
                     </button>
                   </>
                 )}
