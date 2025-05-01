@@ -8,7 +8,6 @@ import Image from "next/image";
 
 interface SignUpData {
   name: string;
-  dob: string;
   email: string;
   password: string;
 }
@@ -25,7 +24,6 @@ const AuthPage = () => {
   // State untuk sign-up
   const [formData, setFormData] = useState<SignUpData>({
     name: "",
-    dob: "",
     email: "",
     password: "",
   });
@@ -66,7 +64,7 @@ const AuthPage = () => {
           <Image
             src="/logo.png"
             alt="Logo"
-            width={40}  
+            width={40}
             height={40}
             className="mb-8"
           />
@@ -179,19 +177,18 @@ const AuthPage = () => {
               </div>
 
               <button
-  onClick={() => signIn('google')}
-  type="button"
-  className="bg-white text-gray-800 border border-gray-300 px-4 py-2 rounded w-80 flex justify-center items-center gap-2 transition-all duration-300 hover:bg-gray-100"
->
-  <Image
-    src="https://www.svgrepo.com/show/475656/google-color.svg"
-    alt="Google"
-    width={20}
-    height={20}
-  />
-  Continue with Google
-</button>
-
+                onClick={() => signIn('google')}
+                type="button"
+                className="bg-white text-gray-800 border border-gray-300 px-4 py-2 rounded w-80 flex justify-center items-center gap-2 transition-all duration-300 hover:bg-gray-100"
+              >
+                <Image
+                  src="https://www.svgrepo.com/show/475656/google-color.svg"
+                  alt="Google"
+                  width={20}
+                  height={20}
+                />
+                Continue with Google
+              </button>
 
               <p className="text-sm text-center mt-6 text-gray-600">
                 Already have an account?{" "}
