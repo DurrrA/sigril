@@ -14,7 +14,10 @@ const barangSchema = z.object({
     harga_pinalti_per_jam: z.number(),
 });
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(
+  request: NextRequest,
+   { params }: { params: Promise<{ id: string }> }
+) {
     const authCheck = await requireAdmin();
     if (!authCheck.isAuthenticated) {
       return NextResponse.redirect(new URL('/forbidden', request.url));
@@ -25,7 +28,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     try {
         const body = await request.json();
         const validatedData = barangSchema.parse(body); 
-        const foto = validatedData.foto || "image/file.svg"; // Set foto to null if not provided
+        const foto = validatedData.foto || "image/file.svg"; 
         const updatedBarang = await prisma.barang.update({
             where: { id: Number((await params).id) },
             data: {
@@ -72,10 +75,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
     const authCheck = await requireAdmin();
     if (!authCheck.isAuthenticated) {
-      // Create a URL object using the current request URL as base
       return NextResponse.redirect(new URL('/forbidden', request.url));
     }
     if (authCheck.isAuthenticated && !authCheck.isAuthorized) {

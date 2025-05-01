@@ -1,178 +1,348 @@
-//BLOM DINAMIS -DURRR
-"use client";
+"use client"
 
-import Image from "next/image";
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { format } from "date-fns"
+import { CalendarIcon, Loader2, User, Info } from "lucide-react"
 
-interface UserProfile {
-  id: string;
-  username: string;
-  phone: string;
-  address: string;
-  profile_image: string | null;
-}
+import { Button } from "@/app/components/button"
+import { Input } from "@/app/components/input"
+import { Textarea } from "@/app/components/textarea"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/app/components/form"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/app/components/card"
+import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/popover"
+import { Calendar } from "@/app/components/calendar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/app/components/avatar"
+import { toast } from "sonner"
+import { Alert, AlertDescription, AlertTitle } from "@/app/components/alert"
+import { cn } from "@/lib/utils"
+import { User as UserType } from "@/interfaces/user.interfaces"
 
-const Profile = () => {
-  // Data lokal sebagai fallback
-  const localUser: UserProfile = {
-    id: "123456",
-    username: "john_doe",
-    phone: "+62 812 3456 7890",
-    address: "Graha Cilebut Residence No.184, Cilebut Bar., Kec. Sukaraja, Kabupaten Bogor, Jawa Barat",
-    profile_image: null, // Ganti dengan URL gambar jika ada
-  };
+const formSchema = z.object({
+  username: z.string().min(3, {
+    message: "Username must be at least 3 characters.",
+  }),
+  phone: z.string().min(10, {
+    message: "Phone number must be at least 10 digits.",
+  }),
+  address: z.string().min(5, {
+    message: "Address must be at least 5 characters.",
+  }),
+  fullName: z.string().min(3, {
+    message: "Full name must be at least 3 characters.",
+  }),
+  dateOfBirth: z.date().optional(),
+  avatar: z.union([z.string(), z.instanceof(File)]).optional(),
+})
 
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false); // State untuk mode edit
-  const [formData, setFormData] = useState<UserProfile | null>(null); // State untuk data form
+export default function ProfilePage() {
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [userData, setUserData] = useState<UserType | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      username: "",
+      phone: "",
+      address: "",
+      fullName: "",
+      dateOfBirth: undefined,
+      avatar: "",
+    },
+  })
+
+  // Fetch user data from the API
   useEffect(() => {
-    // Ganti ID ini dengan ID pengguna yang ingin diambil
-    const userId = "123456";
-
-    // Ambil data pengguna dari API
-    const fetchUser = async () => {
+    const fetchUserData = async () => {
       try {
-        const response = await fetch(`/api/user/${userId}`);
+        setIsLoading(true)
+        const response = await fetch("/api/me")
+        
         if (!response.ok) {
-          throw new Error("User not found");
+          throw new Error("Failed to fetch user data")
         }
-        const data = await response.json();
-        setUser(data);
-        setFormData(data); // Set form data dengan data pengguna
-      } catch (error) {
-        console.error("Error fetching user:", error);
-        // Jika terjadi error, gunakan data lokal
-        setUser(localUser);
-        setFormData(localUser); // Set form data dengan data lokal
+        
+        const data = await response.json()
+        const user = data.data.user
+        
+        setUserData(user)
+        
+        // Set form values from API data
+        form.reset({
+          username: user.username || "",
+          phone: user.no_telp || "",
+          address: user.alamat || "",
+          fullName: user.full_name || "",
+          dateOfBirth: user.date_of_birth ? new Date(user.date_of_birth) : undefined,
+          avatar: user.avatar || "",
+        })
+        
+      } catch (err) {
+        setError("Failed to load profile data")
+        console.error("Error fetching user data:", err)
+        toast("Error", {
+          description: "Failed to load profile data",
+        })
       } finally {
-        setLoading(false);
+        setIsLoading(false)
       }
-    };
-
-    fetchUser();
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (formData) {
-      setFormData({
-        ...formData,
-        [e.target.name]: e.target.value,
-      });
     }
-  };
 
-  const handleSave = () => {
-    setUser(formData); // Simpan perubahan ke state user
-    setIsEditing(false); // Keluar dari mode edit
-    console.log("Data yang disimpan:", formData); // Debugging: log data yang disimpan
-  };
+    fetchUserData()
+  }, [form])
 
-  if (loading) {
-    return <p className="text-center">Loading...</p>;
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      setIsSaving(true)
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("username", values.username);
+      formData.append("phone", values.phone);
+      formData.append("address", values.address);
+      formData.append("fullName", values.fullName);
+      if (values.dateOfBirth) {
+        formData.append("dateOfBirth", values.dateOfBirth.toISOString());
+      }
+      if (values.avatar && values.avatar instanceof File) {
+        formData.append("avatar", values.avatar);
+      }
+      
+      const response = await fetch("/api/me", {
+        method: "PUT",
+        body: formData,
+        // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
+      })
+      
+      if (!response.ok) {
+        throw new Error("Failed to update profile")
+      }
+      
+      const updatedUser = await response.json()
+      
+      // Update the local user data with the response
+      if (userData) {
+        setUserData({
+          ...userData,
+          username: updatedUser.username,
+          no_telp: updatedUser.phone,
+          alamat: updatedUser.address,
+          full_name: updatedUser.fullName,
+          date_of_birth: updatedUser.dateOfBirth,
+          avatar: updatedUser.avatar,
+        })
+      }
+  
+      toast("Profile Updated", {
+        description: "Your profile has been updated successfully.",
+      })
+      
+    } catch (err) {
+      console.error("Error updating profile:", err)
+      toast("Error", {
+        description: "Failed to update profile. Please try again.",
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  if (!user) {
-    return <p className="text-center">User not found</p>;
+  if (isLoading) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container max-w-4xl py-10">
+        <Alert variant="destructive">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 mt-5 mb-10">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Akun Saya</h1>
+    <div className="container max-w-4xl py-10">
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile Settings</CardTitle>
+          <CardDescription>Update your personal information and profile settings</CardDescription>
+        </CardHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col items-center space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
+              <Avatar className="h-24 w-24">
+                <AvatarImage 
+                  src={
+                    userData?.avatar && typeof userData.avatar === 'string' 
+                      ? userData.avatar 
+                      : form.watch('avatar') instanceof File 
+                        ? URL.createObjectURL(form.watch('avatar') as File) 
+                        : ''
+                  } 
+                  alt={userData?.username || "User"} 
+                />
+                <AvatarFallback className="text-2xl">
+                  <User className="h-12 w-12" />
+                </AvatarFallback>
+              </Avatar>
+                <div className="flex flex-col space-y-2">
+                  <h3 className="text-lg font-medium">{userData?.email}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Member since {new Date(userData?.createdAt || "").toLocaleDateString()}
+                  </p>
+                  <FormField
+                    control={form.control}
+                    name="avatar"
+                    render={({ field: { value, onChange, ...fieldProps } }) => (
+                      <FormItem>
+                        <FormLabel>Profile Picture</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              className="w-full sm:w-80"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  // Store the file in the form
+                                  onChange(file);
+                                }
+                              }}
+                              {...fieldProps}
+                            />
+                            {value && typeof value === 'object' && (
+                              <div className="text-sm text-muted-foreground">
+                                {(value as File).name}
+                              </div>
+                            )}
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
 
-      {/* Gambar Profil */}
-      <div className="flex flex-col items-center mb-6">
-        <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center shadow-md">
-          {user.profile_image ? (
-            <Image
-              src={user.profile_image}
-              alt="Profile"
-              className="w-full h-full rounded-full object-cover"
-            />
-          ) : (
-            <i className="fas fa-user text-4xl text-gray-500"></i>
-          )}
-        </div>
-        <p className="text-gray-600 mt-2">{user.username}</p>
-      </div>
+              <div className="grid gap-6 pt-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input placeholder="username" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-      {/* Informasi Profil */}
-      <div className="grid grid-cols-1 gap-4">
-        {/* ID */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-lg font-bold text-gray-800">ID</h2>
-          <p className="text-gray-600">{user.id}</p>
-        </div>
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-        {/* Username */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-lg font-bold text-gray-800">Username</h2>
-          {isEditing ? (
-            <input
-              type="text"
-              name="username"
-              value={formData?.username || ""}
-              onChange={handleInputChange}
-              className="w-full border border-gray-300 rounded-lg p-2 mt-2"
-            />
-          ) : (
-            <p className="text-gray-600">{user.username}</p>
-          )}
-        </div>
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="+1234567890" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-        {/* Nomor Telepon */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-lg font-bold text-gray-800">Nomor Telepon</h2>
-          {isEditing ? (
-            <input
-              type="text"
-              name="phone"
-              value={formData?.phone || ""}
-              onChange={handleInputChange}
-              className="w-full border border-gray-300 rounded-lg p-2 mt-2"
-            />
-          ) : (
-            <p className="text-gray-600">{user.phone}</p>
-          )}
-        </div>
+                <FormField
+                  control={form.control}
+                  name="dateOfBirth"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Date of Birth</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground",
+                              )}
+                            >
+                              {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-        {/* Alamat */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-lg font-bold text-gray-800">Alamat</h2>
-          {isEditing ? (
-            <textarea
-              name="address"
-              value={formData?.address || ""}
-              onChange={handleInputChange}
-              className="w-full border border-gray-300 rounded-lg p-2 mt-2"
-            />
-          ) : (
-            <p className="text-gray-600">{user.address}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Tombol Edit/Simpan */}
-      <div className="flex justify-center mt-6">
-        {isEditing ? (
-          <button
-            onClick={handleSave}
-            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md"
-          >
-            Simpan
-          </button>
-        ) : (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="bg-gray-200 hover:bg-[#3528AB] hover:text-white font-bold py-2 px-6 rounded-lg shadow-md flex items-center gap-2"
-          >
-            <i className="fas fa-pencil-alt"></i> Edit
-          </button>
-        )}
-      </div>
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>Address</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Your address" className="resize-none" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end space-x-2 border-t px-6 py-4">
+              <Button variant="outline" onClick={() => form.reset()} disabled={isSaving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
+      </Card>
     </div>
-  );
-};
-
-export default Profile;
+  )
+}

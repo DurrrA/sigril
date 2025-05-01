@@ -26,7 +26,7 @@ export default function RegisterPage() {
             key={key}
             type={key === 'password' ? 'password' : 'text'}
             placeholder={key}
-            value={(form as any)[key]}
+            value={form[key as keyof typeof form]}
             onChange={e => setForm({ ...form, [key]: key === 'role_id' ? Number(e.target.value) : e.target.value })}
             className="border p-2 mb-2"
             />
