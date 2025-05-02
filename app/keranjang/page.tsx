@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
-import KeranjangItem from "../components/KeranjangItem";
+import KeranjangItem from "../../components/ui/KeranjangItem";
 
 interface KeranjangItemData {
   id: string;
@@ -16,21 +16,21 @@ const Keranjang = () => {
   const [items, setItems] = useState<KeranjangItemData[]>([
     {
       id: "1",
-      image: "/dummy1.png",
+      image: "dummy1.png",
       name: "Big Family Packages",
       price: 25000,
       initialQuantity: 2,
     },
     {
       id: "2",
-      image: "/dummy2.png",
+      image: "dummy2.png",
       name: "Grill Pan Mini",
       price: 175000,
       initialQuantity: 1,
     },
     {
       id: "3",
-      image: "/dummy3.png",
+      image: "dummy3.png",
       name: "Tenda Camping Nyaman",
       price: 300000,
       initialQuantity: 1,

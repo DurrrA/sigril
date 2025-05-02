@@ -1,10 +1,10 @@
-import NewsCard from "./components/NewsCard";
+import NewsCard from "../components/ui/NewsCard";
 import Image from "next/image";
 import React from "react";
-import ProductCarousel from "./components/ProductCarousel";
-import ReviewCarousel from "./components/ReviewCarousel";
-import MiddleBar from "./components/MiddleBar";
-import NewsCarousel from "./components/NewsCarousel";
+import ProductCarousel from "../components/ui/ProductCarousel";
+import ReviewCarousel from "../components/ui/ReviewCarousel";
+import MiddleBar from "../components/ui/MiddleBar";
+import NewsCarousel from "../components/ui/NewsCarousel";
 
 export default function Home() {
   const news = [

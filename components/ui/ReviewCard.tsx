@@ -30,9 +30,9 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ profileImage, name, review }) =
 
       {/* Kutipan & Review */}
       <div className="relative px-4 text-gray-700">
-        <div className="absolute -left-4 top-0 text-4xl text-purple-200 font-serif">"</div>
+        <div className="absolute -left-4 top-0 text-4xl text-purple-200 font-serif">&quot;</div>
         <p className="text-base leading-relaxed">{review}</p>
-        <div className="absolute -right-4 bottom-0 text-4xl text-purple-200 font-serif rotate-180">"</div>
+        <div className="absolute -right-4 bottom-0 text-4xl text-purple-200 font-serif rotate-180">&quot;</div>
       </div>
     </div>
   )

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { Button } from "../components/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../components/ui/card"
 import { AlertCircle } from "lucide-react"
 
 export default function ProfileError({

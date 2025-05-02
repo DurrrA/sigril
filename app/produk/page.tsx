@@ -1,5 +1,5 @@
 import React from 'react';
-import ProductCarousel from '../components/ProductCarousel';
+import ProductCarousel from '../../components/ui/ProductCarousel';
 import { BarangResponse } from '@/interfaces/barang.interfaces';
 
 async function getBarang(): Promise<BarangResponse> {

@@ -101,8 +101,6 @@ export interface RentalItem {
   
 export interface Product {
     category: string;
-    category: string;
-    category: string;
     id: number;
     nama: string;
     harga: number;

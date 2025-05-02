@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Barang } from "@/interfaces/barang.interfaces";
 import Image from "next/image";
-import ProfileCompletionCheck from '@/app/components/ProfileCompletionCheck';
+import ProfileCompletionCheck from '@/components/ui/ProfileCompletionCheck';
 
 const DetailProduk = () => {
   const router = useRouter();
