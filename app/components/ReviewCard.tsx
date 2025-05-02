@@ -1,10 +1,10 @@
-import Image from "next/image";
-import React from "react";
+import Image from "next/image"
+import type React from "react"
 
 interface ReviewCardProps {
-  profileImage?: string; // Opsional
-  name: string;
-  review: string;
+  profileImage?: string // Opsional
+  name: string
+  review: string
 }
 
 const ReviewCard: React.FC<ReviewCardProps> = ({ profileImage, name, review }) => {
@@ -14,14 +14,14 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ profileImage, name, review }) =
       <div className="w-20 h-20 rounded-full overflow-hidden shadow-md mb-4">
         {profileImage ? (
           <Image
-            src={profileImage}
+            src={profileImage || "/placeholder.svg"}
             alt={`${name}'s profile`}
+            width={80}
+            height={80}
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-2xl text-gray-500">
-            👤
-          </div>
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-2xl text-gray-500">👤</div>
         )}
       </div>
 
@@ -30,14 +30,12 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ profileImage, name, review }) =
 
       {/* Kutipan & Review */}
       <div className="relative px-4 text-gray-700">
-        <div className="absolute -left-4 top-0 text-4xl text-purple-200 font-serif">“</div>
-        <p className="text-base leading-relaxed">
-          {review}
-        </p>
-        <div className="absolute -right-4 bottom-0 text-4xl text-purple-200 font-serif rotate-180">“</div>
+        <div className="absolute -left-4 top-0 text-4xl text-purple-200 font-serif">"</div>
+        <p className="text-base leading-relaxed">{review}</p>
+        <div className="absolute -right-4 bottom-0 text-4xl text-purple-200 font-serif rotate-180">"</div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ReviewCard;
+export default ReviewCard

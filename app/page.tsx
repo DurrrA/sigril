@@ -1,103 +1,205 @@
+import NewsCard from "./components/NewsCard";
 import Image from "next/image";
+import React from "react";
+import ProductCarousel from "./components/ProductCarousel";
+import ReviewCarousel from "./components/ReviewCarousel";
+import MiddleBar from "./components/MiddleBar";
+import NewsCarousel from "./components/NewsCarousel";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const news = [
+    {
+      image: "/dummy1.png",
+    },
+    {
+      image: "/dummy2.png",
+    },
+    {
+      image: "/dummy3.png",
+    },
+    {
+      image: "/dummy1.png",
+    },
+  ];
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const allProducts = [
+    {
+      id: "1",
+      image: "/dummy1.png",
+      name: "Alat Grill Portable",
+      price: "Rp 150.000",
+      description: "Alat grill portable untuk BBQ bersama keluarga.",
+      category: "Alat Grill",
+    },
+    {
+      id: "2",
+      image: "/dummy2.png",
+      name: "Set Piknik Estetik",
+      price: "Rp 200.000",
+      description: "Set perlengkapan piknik estetik untuk acara outdoor.",
+      category: "Perlengkapan Piknik",
+    },
+    {
+      id: "3",
+      image: "/dummy3.png",
+      name: "Tenda Camping Nyaman",
+      price: "Rp 300.000",
+      description: "Tenda camping untuk pengalaman outdoor yang nyaman.",
+      category: "Camping",
+    },
+    {
+      id: "4",
+      image: "/dummy1.png",
+      name: "Lampu LED Tenaga Surya",
+      price: "Rp 100.000",
+      description: "Lampu LED tenaga surya untuk penerangan saat berkemah.",
+      category: "Camping",
+    },
+    {
+      id: "5",
+      image: "/dummy2.png",
+      name: "Grill Pan Mini",
+      price: "Rp 175.000",
+      description: "Grill pan mini untuk kegiatan memasak outdoor.",
+      category: "Alat Grill",
+    },
+    {
+      id: "6",
+      image: "/dummy3.png",
+      name: "Tikar Piknik Estetik",
+      price: "Rp 85.000",
+      description: "Tikar piknik lipat dengan motif estetik.",
+      category: "Perlengkapan Piknik",
+    },
+    {
+      id: "7",
+      image: "/dummy1.png",
+      name: "Alat Grill Portable",
+      price: "Rp 150.000",
+      description: "Alat grill portable untuk BBQ bersama keluarga.",
+      category: "Alat Grill",
+    },
+    {
+      id: "8",
+      image: "/dummy1.png",
+      name: "Alat Grill Portable",
+      price: "Rp 150.000",
+      description: "Alat grill portable untuk BBQ bersama keluarga.",
+      category: "Alat Grill",
+    },
+    {
+      id: "9",
+      image: "/dummy1.png",
+      name: "Alat Grill Portable",
+      price: "Rp 150.000",
+      description: "Alat grill portable untuk BBQ bersama keluarga.",
+      category: "Alat Grill",
+    },
+    {
+      id: "10",
+      image: "/dummy1.png",
+      name: "Alat Grill Portable",
+      price: "Rp 150.000",
+      description: "Alat grill portable untuk BBQ bersama keluarga.",
+      category: "Alat Grill",
+    },
+    {
+      id: "11",
+      image: "/dummy1.png",
+      name: "Alat Grill Portable",
+      price: "Rp 150.000",
+      description: "Alat grill portable untuk BBQ bersama keluarga.",
+      category: "Alat Grill",
+    },
+  ];
+
+  // Filter produk berdasarkan kategori
+  const grillProducts = allProducts.filter((product) => product.category === "Alat Grill");
+  const picnicProducts = allProducts.filter((product) => product.category === "Perlengkapan Piknik");
+  const campingProducts = allProducts.filter((product) => product.category === "Camping");
+  const otherProducts = allProducts.filter((product) => product.category === "Lain-lain");
+
+  const reviews = [
+    {
+      name: "John Doe",
+      review: "Acara BBQ keluarga jadi lebih seru berkat KENAM.PLAN! Peralatannya lengkap, grill-nya mudah digunakan, dan semuanya bersih serta berkualitas. Nggak perlu repot, tinggal pakai dan langsung menikmati BBQ bareng keluarga. Pasti bakal sewa lagi!",
+    },
+    {
+      name: "Jane Smith",
+      review: "Sewa Big Family BBQ Package di KENAM.PLAN benar-benar worth it! Semua perlengkapan sudah disiapkan, dekorasi juga estetik banget. Momen kumpul keluarga jadi lebih spesial tanpa harus ribet persiapan. Sangat direkomendasikan!",
+    },
+    {
+      name: "Michael Johnson",
+      review: "Acara BBQ keluarga jadi lebih seru berkat KENAM.PLAN! Peralatannya lengkap, grill-nya mudah digunakan, dan semuanya bersih serta berkualitas. Nggak perlu repot, tinggal pakai dan langsung menikmati BBQ bareng keluarga. Pasti bakal sewa lagi!",
+    },
+    {
+      name: "Emily Davis",
+      review: "Sewa Big Family BBQ Package di KENAM.PLAN benar-benar worth it! Semua perlengkapan sudah disiapkan, dekorasi juga estetik banget. Momen kumpul keluarga jadi lebih spesial tanpa harus ribet persiapan. Sangat direkomendasikan!",
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col">
+      <main className="flex-grow">
+        {/* Header Image */}
+        <div className="relative w-full h-[calc(100vw*9/16)] -mt-10">
+          <Image
+            src="/head.png"
+            alt="Head Image"
+            fill
+            style={{ objectFit: "contain" }}
+            priority
+          />
+        </div>
+
+        {/* Intro Section */}
+        <div>
+          <h1 className="text-4xl font-bold text-center mt-20 mx-20">
+            🌿 KENAM.PLAN – SEWA ALAT GRILL, PIKNIK & CAMPING 🌿
+          </h1>
+          <p className="text-center text-lg mt-4 mx-20">
+            Ingin mengadakan piknik estetik, BBQ seru, atau camping nyaman tanpa repot? KENAM.PLAN siap mewujudkan pengalaman outdoor terbaik untukmu dengan menyediakan sewa alat grill, perlengkapan piknik, dan camping berkualitas, serta layanan set foto produk aesthetic dan Picnic Planner untuk acara spesial seperti bridal shower, gender reveal, hingga birthday picnic. Tak perlu ribet, cukup sewa dan nikmati momen berharga bersama orang terdekat—KENAM.PLAN siap membuat acara outdoor-mu lebih berkesan!
+          </p>
+          <p className="text-center text-lg mt-4 mx-10 mb-20">
+            💛 Hubungi kami sekarang dan wujudkan piknik impianmu! 🚀
+          </p>
+        </div>
+
+        {/* News Section */}
+        <div>
+          <h2 className="text-4xl font-bold text-center mt-30">PENGUMUMAN</h2>
+          <div className="mt-10 mb-10 px-6 mx-20">
+            <NewsCarousel news={news} />
+          </div>
+        </div>
+
+        {/* Product Carousels */}
+        <div className="mt-30 px-6 mx-20">
+          <ProductCarousel category="Alat Grill" products={grillProducts} />
+        </div>
+        <div className="mt-10 px-6 mx-20">
+          <ProductCarousel category="Perlengkapan Piknik" products={picnicProducts} />
+        </div>
+        <div className="mt-10 px-6 mx-20">
+          <ProductCarousel category="Camping" products={campingProducts} />
+        </div>
+
+        {/* Middle Bar */}
+        <div className="mt-20 mb-20">
+          <MiddleBar />
+        </div>
+
+        {/* Reviews Section */}
+        <div>
+          <h1 className="text-4xl font-bold text-center mt-20">Review Pelanggan</h1>
+          <div className="mt-10 px-6 mx-20 mb-15">
+            <ReviewCarousel reviews={reviews} />
+          </div>
+          <button className="bg-[#3528AB] text-white px-6 py-2 rounded-full hover:bg-white hover:text-[#3528AB] transition duration-300 align-center mx-auto block mb-20">
+            Sebaran Pelanggan
+          </button>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }

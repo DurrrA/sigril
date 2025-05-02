@@ -1,70 +1,64 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
+import { useState } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { ShoppingCart, UserCircle, LogIn, UserPlus, Package, User, LogOut } from "lucide-react"
 
 const Navbar = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // State untuk status login
-  const [dropdownOpen, setDropdownOpen] = useState(false); // State untuk dropdown
-  const [isLoggingOut, setIsLoggingOut] = useState(false); // State untuk animasi logout
+  const [isLoggedIn, setIsLoggedIn] = useState(false) // State untuk status login
+  const [dropdownOpen, setDropdownOpen] = useState(false) // State untuk dropdown
 
   const toggleDropdown = () => {
-    setDropdownOpen((prev) => !prev);
-  };
+    setDropdownOpen((prev) => !prev)
+  }
 
   const handleLogout = () => {
-    setIsLoggingOut(true); // Memulai animasi logout
-    setTimeout(() => {
-      setIsLoggedIn(false);
-      setDropdownOpen(false);
-      setIsLoggingOut(false); // Menghentikan animasi logout
-    }, 500); // Durasi animasi
-  };
+    // Logika logout
+    setIsLoggedIn(false)
+    setDropdownOpen(false)
+  }
 
   return (
     <>
-      <nav className="bg-[#3528AB] px-20 py-3 flex justify-between items-center sticky top-0 z-50 shadow-md">
+      <nav className="bg-[#3528AB] px-4 md:px-20 py-3 flex justify-between items-center sticky top-0 z-50 shadow-md">
         {/* Logo */}
         <Link href="/" className="flex items-center">
           <Image src="/logo.png" alt="Logo" width={40} height={40} />
         </Link>
 
         {/* Navigation Links */}
-        <div className="flex space-x-6 text-white font-medium">
+        <div className="hidden md:flex space-x-6 text-white font-medium">
           <Link
             href="/"
             className="px-3 py-1 rounded-full transition-all duration-300 hover:bg-white hover:text-[#3528AB]"
           >
             Home
           </Link>
-          <a
+          <Link
             href="/produk"
             className="px-3 py-1 rounded-full transition-all duration-300 hover:bg-white hover:text-[#3528AB]"
           >
             Produk
-          </a>
-          <a
+          </Link>
+          <Link
             href="/kontak"
             className="px-3 py-1 rounded-full transition-all duration-300 hover:bg-white hover:text-[#3528AB]"
           >
             Kontak Kami
-          </a>
+          </Link>
         </div>
 
         {/* Icons */}
         <div className="flex space-x-4 relative">
-          <a href="/keranjang" className="text-white hover:text-gray-300 text-2xl">
-            <i className="fas fa-shopping-cart"></i>
-          </a>
+          <Link href="/keranjang" className="text-white hover:text-gray-300">
+            <ShoppingCart className="h-6 w-6" />
+          </Link>
 
           {/* Profile Icon with Dropdown */}
           <div className="relative">
-            <button
-              onClick={toggleDropdown}
-              className="text-white hover:text-gray-300 ml-2 text-2xl focus:outline-none"
-            >
-              <i className="fas fa-user-circle"></i>
+            <button onClick={toggleDropdown} className="text-white hover:text-gray-300 ml-2 focus:outline-none">
+              <UserCircle className="h-6 w-6" />
             </button>
 
             {dropdownOpen && (
@@ -75,13 +69,13 @@ const Navbar = () => {
                       href="/login"
                       className="flex items-center px-4 py-2 text-gray-800 hover:bg-[#3528AB] hover:text-white"
                     >
-                      <i className="fas fa-sign-in-alt mr-2"></i> Login
+                      <LogIn className="h-4 w-4 mr-2" /> Login
                     </Link>
                     <Link
                       href="/register"
                       className="flex items-center px-4 py-2 text-gray-800 hover:bg-[#3528AB] hover:text-white"
                     >
-                      <i className="fas fa-user-plus mr-2"></i> Register
+                      <UserPlus className="h-4 w-4 mr-2" /> Register
                     </Link>
                   </>
                 ) : (
@@ -90,19 +84,19 @@ const Navbar = () => {
                       href="/pesanan-saya"
                       className="flex items-center px-4 py-2 text-gray-800 hover:bg-[#3528AB] hover:text-white"
                     >
-                      <i className="fas fa-box mr-2"></i> Pesanan Saya
+                      <Package className="h-4 w-4 mr-2" /> Pesanan Saya
                     </Link>
                     <Link
                       href="/profile"
                       className="flex items-center px-4 py-2 text-gray-800 hover:bg-[#3528AB] hover:text-white"
                     >
-                      <i className="fas fa-user mr-2"></i> Akun Saya
+                      <User className="h-4 w-4 mr-2" /> Akun Saya
                     </Link>
                     <button
                       onClick={handleLogout}
-                      className={`flex items-center w-full text-left px-4 py-2 text-gray-800 hover:bg-[#3528AB] hover:text-white ${isLoggingOut ? "bg-gray-300" : ""}`}
+                      className="flex items-center w-full text-left px-4 py-2 text-gray-800 hover:bg-[#3528AB] hover:text-white"
                     >
-                      <i className="fas fa-sign-out-alt mr-2"></i> {isLoggingOut ? 'Logging out...' : 'Logout'}
+                      <LogOut className="h-4 w-4 mr-2" /> Logout
                     </button>
                   </>
                 )}
@@ -112,7 +106,7 @@ const Navbar = () => {
         </div>
       </nav>
     </>
-  );
-};
+  )
+}
 
-export default Navbar;
+export default Navbar

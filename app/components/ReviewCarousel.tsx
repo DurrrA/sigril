@@ -1,97 +1,68 @@
-"use client";
+"use client"
 
-import React, { useRef, useState, useEffect } from "react";
-import ReviewCard from "./ReviewCard";
+import { useEffect, useState } from "react"
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
+import type { CarouselApi } from "@/components/ui/carousel"
+import ReviewCard from "./ReviewCard"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 interface ReviewCarouselProps {
-  reviews: { profileImage?: string; name: string; review: string }[];
+  reviews: { profileImage?: string; name: string; review: string }[]
 }
 
-const ReviewCarousel: React.FC<ReviewCarouselProps> = ({ reviews }) => {
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+export default function ReviewCarousel({ reviews }: ReviewCarouselProps) {
+  const [api, setApi] = useState<CarouselApi>()
+  const [current, setCurrent] = useState(0)
+  const [count, setCount] = useState(0)
 
   useEffect(() => {
-    const el = carouselRef.current;
-    if (el) {
-      const updateScrollState = () => {
-        setCanScrollLeft(el.scrollLeft > 0);
-        setCanScrollRight(el.scrollLeft + el.offsetWidth < el.scrollWidth);
-      };
-      updateScrollState();
-      el.addEventListener("scroll", updateScrollState);
-      return () => el.removeEventListener("scroll", updateScrollState);
+    if (!api) {
+      return
     }
-  }, []);
 
-  const scrollLeft = () => {
-    const el = carouselRef.current;
-    if (el) {
-      const cardWidth = el.offsetWidth / 2; // Lebar satu ulasan
-      el.scrollBy({ left: -cardWidth, behavior: "smooth" });
-    }
-  };
+    setCount(api.scrollSnapList().length)
+    setCurrent(api.selectedScrollSnap() + 1)
 
-  const scrollRight = () => {
-    const el = carouselRef.current;
-    if (el) {
-      const cardWidth = el.offsetWidth / 2; // Lebar satu ulasan
-      el.scrollBy({ left: cardWidth, behavior: "smooth" });
-    }
-  };
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap() + 1)
+    })
+  }, [api])
 
   return (
-    <div className="relative w-full overflow-hidden">
-      {/* Wrapper untuk Carousel dan Tombol */}
-      <div className="flex items-center">
-        {/* Tombol Scroll Kiri */}
-        <button
-          onClick={scrollLeft}
-          className={`bg-gray-200 hover:bg-[#3528AB] hover:text-white active:bg-[#3528AB] active:text-white rounded-full w-12 h-12 flex items-center justify-center shadow-md ${
-            !canScrollLeft ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-          disabled={!canScrollLeft}
-        >
-          {"<"}
-        </button>
+    <div className="relative w-full">
+      <Carousel
+        setApi={setApi}
+        opts={{
+          align: "start",
+          loop: true, // Enable infinite looping
+        }}
+        className="w-full"
+      >
+        <div className="flex items-center">
+          <CarouselPrevious className="relative inset-0 translate-y-0 bg-gray-200 hover:bg-[#3528AB] hover:text-white active:bg-[#3528AB] active:text-white rounded-full w-12 h-12 flex items-center justify-center shadow-md">
+            <ChevronLeft className="h-5 w-5" />
+          </CarouselPrevious>
 
-        {/* Carousel */}
-        <div
-          ref={carouselRef}
-          className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-4 w-full align-center"
-          style={{
-            scrollSnapType: "x mandatory",
-          }}
-        >
-          {reviews.map((review, index) => (
-            <div
-              key={index}
-              className="flex-shrink-0 w-1/2"
-              style={{ scrollSnapAlign: "start" }}
-            >
-              <ReviewCard
-                profileImage={review.profileImage}
-                name={review.name}
-                review={review.review}
-              />
-            </div>
-          ))}
+          <CarouselContent className="px-4 w-full">
+            {reviews.map((review, index) => (
+              <CarouselItem key={index} className="basis-full md:basis-1/2">
+                <ReviewCard profileImage={review.profileImage} name={review.name} review={review.review} />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+
+          <CarouselNext className="relative inset-0 translate-y-0 bg-gray-200 hover:bg-[#3528AB] hover:text-white active:bg-[#3528AB] active:text-white rounded-full w-12 h-12 flex items-center justify-center shadow-md">
+            <ChevronRight className="h-5 w-5" />
+          </CarouselNext>
         </div>
 
-        {/* Tombol Scroll Kanan */}
-        <button
-          onClick={scrollRight}
-          className={`bg-gray-200 hover:bg-[#3528AB] hover:text-white active:bg-[#3528AB] active:text-white rounded-full w-12 h-12 flex items-center justify-center shadow-md ${
-            !canScrollRight ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-          disabled={!canScrollRight}
-        >
-          {">"}
-        </button>
-      </div>
+        {/* Optional: Add a counter to show current position */}
+        <div className="flex justify-center mt-4">
+          <span className="text-sm text-muted-foreground">
+            {current} / {count}
+          </span>
+        </div>
+      </Carousel>
     </div>
-  );
-};
-
-export default ReviewCarousel;
+  )
+}
