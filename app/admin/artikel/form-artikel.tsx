@@ -11,38 +11,42 @@ import { CalendarIcon, Loader2 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
-import { useEffect } from "react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+interface Tag {
+  id: number;
+  nama: string;
+}
 
 const formSchema = z.object({
   judul: z.string().min(1, { message: "Judul wajib diisi" }),
   id_tags: z.string().optional(),
   konten: z.string().min(1, { message: "Konten wajib diisi" }),
-  publish_date: z.preprocess(
-    (val) => (typeof val === "string" ? new Date(val) : val),
-    z.date({ required_error: "Tanggal wajib diisi" })
-  ),
-  foto: z.any().refine((file) => file instanceof File || file?.length > 0, {
-    message: "Foto wajib diunggah",
-  }),
+  publish_date: z.date({ required_error: "Tanggal wajib diisi" }),
+  foto: z.instanceof(File).optional(),
 })
 
 type FormBuatArtikelProps = {
   defaultValues?: {
     judul: string;
-    tags?: string;
+    id_tags?: string;
     konten: string;
     publish_date: Date;
     foto?: File | null;
   };
-  onSubmitSuccess?: (data: any) => void;
+  onSubmitSuccess?: () => void;
 }
 
 export function FormBuatArtikel({ defaultValues, onSubmitSuccess }: FormBuatArtikelProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       judul: defaultValues?.judul ?? "",
-      tags: defaultValues?.tags ?? "",
+      id_tags: defaultValues?.id_tags ?? "",
       konten: defaultValues?.konten ?? "",
       publish_date: defaultValues?.publish_date ?? new Date(),
       foto: undefined,
@@ -58,10 +62,80 @@ export function FormBuatArtikel({ defaultValues, onSubmitSuccess }: FormBuatArti
     }
   }, [defaultValues, form])
 
-  const onSubmit = (data: any) => {
-    console.log("Submitted:", data)
-    onSubmitSuccess?.(data)
-  }
+  // Fetch tags on component mount
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const response = await fetch('/api/tags');
+        if (response.ok) {
+          const data = await response.json();
+          setTags(data.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching tags:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTags();
+  }, []);
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      setIsSubmitting(true);
+      
+      // Handle image upload if provided
+      let imageUrl = "";
+      
+      if (values.foto instanceof File) {
+        const formData = new FormData();
+        formData.append("file", values.foto);
+        
+        const uploadResponse = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error("Failed to upload image");
+        }
+        
+        const uploadData = await uploadResponse.json();
+        imageUrl = uploadData.url;
+      }
+      
+      // Create article
+      const articleData = {
+        judul: values.judul,
+        konten: values.konten,
+        id_tags: values.id_tags ? parseInt(values.id_tags) : null,
+        publishAt: values.publish_date.toISOString(),
+        is_published: true,
+        foto: imageUrl,
+      };
+      
+      const response = await fetch('/api/artikel', {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(articleData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create article");
+      }
+
+      if (onSubmitSuccess) {
+        onSubmitSuccess();
+      }
+    } catch (error) {
+      console.error("Error creating article:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <Form {...form}>
@@ -90,7 +164,7 @@ export function FormBuatArtikel({ defaultValues, onSubmitSuccess }: FormBuatArti
               <FormLabel>Tag</FormLabel>
               <Select
                 onValueChange={field.onChange}
-                defaultValue={field.value}
+                value={field.value}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -157,9 +231,8 @@ export function FormBuatArtikel({ defaultValues, onSubmitSuccess }: FormBuatArti
                 <PopoverContent align="start" className="w-auto p-0">
                   <Calendar
                     mode="single"
-                    selected={field.value as Date | undefined}
+                    selected={field.value as Date}
                     onSelect={field.onChange}
-                    disabled={(date) => date > new Date()}
                   />
                 </PopoverContent>
               </Popover>
@@ -204,7 +277,6 @@ export function FormBuatArtikel({ defaultValues, onSubmitSuccess }: FormBuatArti
             {isSubmitting ? "Menyimpan..." : "Simpan"}
           </Button>
         </div>
-
       </form>
     </Form>
   )

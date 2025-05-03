@@ -19,7 +19,7 @@ export default function AdminLayout({
 }) {
   return (
     <html lang="en" className={poppins.variable}>
-      <body className="min-h-screen bg-gray-100">{children}</body>
+      <body className="min-h-screen bg-white flex flex-col">{children}</body>
     </html>
   );
 }

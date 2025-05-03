@@ -1,6 +1,6 @@
 "use client"
 
-import { PencilIcon, TrashIcon, PlusIcon  } from "lucide-react";
+import { PencilIcon, TrashIcon, PlusIcon, Loader2  } from "lucide-react";
 import Image from "next/image"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -12,6 +12,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
   AlertDialogDescription,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -19,7 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SiteHeader } from "@/components/site-header"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Select,
   SelectTrigger,
@@ -30,52 +31,85 @@ import {
 import { Input } from "@/components/ui/input";
 import { FormBuatArtikel } from "./form-artikel";
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from "@/components/ui/pagination";
-
-const dummyArtikel = [
-  {
-    id: 1,
-    judul: "Alat Terbaru Super Canggih",
-    tag: "Alat Grill",
-    konten: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-    tglPublish: "2025-03-12",
-    foto: '/images/logo_kenamplan.png',
-  },
-]
+import { Artikel } from "@/interfaces/artikel.interfaces";
+import { FormEditArtikel } from "./form-edit-artikel";
 
 export default function PageArtikel() {
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
   const [isTambahOpen, setIsTambahOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [editData, setEditData] = useState<any>(null)
+  const [editData, setEditData] = useState<Artikel | null>(null)
 
+  // Data fetching states
+  const [articles, setArticles] = useState<Artikel[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Filtering states
   const [searchKeyword, setSearchKeyword] = useState("");
-    const [selectedFilter, setSelectedFilter] = useState("");
-    const [filterValue, setFilterValue] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [filterValue, setFilterValue] = useState("");
   
-    const filteredData = dummyArtikel.filter((data) => {
-      const keywordMatch =
-        data.judul.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-        data.tag.toLowerCase().includes(searchKeyword.toLowerCase());
-        
-    
-      let filterMatch = true;
-    
-      if (selectedFilter === "tag" && filterValue) {
-        filterMatch = data.tag.toLowerCase() === filterValue.toLowerCase();
+  // Fetch articles
+  const fetchArticles = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/artikel');
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
       }
-    
-      if (selectedFilter === "bulan" && filterValue) {
-        const bulan = data.tglPublish.split("-")[1]; // Ambil bulan dari tgl
-        filterMatch = bulan === filterValue;
-      }
-    
-      return keywordMatch && filterMatch;
-    });
+      
+      const result = await response.json();
+      setArticles(result.data || []);
+    } catch (err) {
+      setError('Failed to load articles');
+      console.error('Error fetching articles:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    fetchArticles();
+  }, []);
+  
+  // Filter articles
+  const filteredData = articles.filter((data) => {
+    const keywordMatch = searchKeyword 
+      ? data.judul.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        (data.tags?.nama?.toLowerCase().includes(searchKeyword.toLowerCase()) ?? false)
+      : true;
+      
+    let filterMatch = true;
+  
+    if (selectedFilter === "tag" && filterValue) {
+      filterMatch = data.tags?.id.toString() === filterValue;
+    }
+  
+    if (selectedFilter === "bulan" && filterValue) {
+      const bulan = new Date(data.publishAt).getMonth() + 1;
+      filterMatch = bulan.toString().padStart(2, '0') === filterValue;
+    }
+  
+    return keywordMatch && filterMatch;
+  });
 
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
+
+  // Ensure current page is valid when data changes
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages));
+    }
+  }, [totalPages, currentPage]);
 
   const currentData = filteredData.slice(
     (currentPage - 1) * itemsPerPage,
@@ -88,20 +122,44 @@ export default function PageArtikel() {
     }
   };
 
-  const handleDelete = (itemName: string) => {
-    console.log(`Hapus item: ${itemName}`)
-    setSelectedItem(null)
+  // Handle delete
+  const handleDelete = async () => {
+    if (!selectedId) return;
+    
+    try {
+      const response = await fetch(`/api/artikel/${selectedId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete article');
+      }
+      
+      // Refresh the articles list
+      fetchArticles();
+      
+      // Reset states
+      setSelectedItem(null);
+      setSelectedId(null);
+    } catch (error) {
+      console.error('Error deleting article:', error);
+    }
   }
 
-  const handleEditClick = (artikel: any) => {
-    setEditData({
-      judul: artikel.judul,
-      tags: artikel.tag,
-      konten: artikel.konten,
-      publish_date: new Date(artikel.tglPublish),
-      foto: null,
-    })
-    setIsEditOpen(true)
+  const handleEditClick = (artikel: Artikel) => {
+    setEditData(artikel);
+    setIsEditOpen(true);
+  }
+
+  // Handle successful form submissions
+  const handleCreateSuccess = () => {
+    setIsTambahOpen(false);
+    fetchArticles();
+  }
+
+  const handleEditSuccess = () => {
+    setIsEditOpen(false);
+    fetchArticles();
   }
 
   return (
@@ -126,7 +184,7 @@ export default function PageArtikel() {
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-md">
-                      <FormBuatArtikel onSubmitSuccess={() => setIsTambahOpen(false)} />
+                      <FormBuatArtikel onSubmitSuccess={handleCreateSuccess} />
                     </DialogContent>
                   </Dialog>
 
@@ -134,9 +192,9 @@ export default function PageArtikel() {
                   <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                     <DialogContent className="max-w-md">
                       {editData && (
-                        <FormBuatArtikel
-                          defaultValues={editData}
-                          onSubmitSuccess={() => setIsEditOpen(false)}
+                        <FormEditArtikel
+                          article={editData}
+                          onSuccess={handleEditSuccess}
                         />
                       )}
                     </DialogContent>
@@ -146,21 +204,21 @@ export default function PageArtikel() {
                   <div className="flex justify-end gap-2 items-center">
                     {/* Dropdown Kategori Filter */}
                     <Select
-                      value={selectedFilter}
-                      onValueChange={(value) => {
+                    value={selectedFilter}
+                    onValueChange={(value) => {
                         setSelectedFilter(value);
                         setFilterValue(""); // Reset value filter saat kategori diganti
                         setCurrentPage(1);
-                      }}
+                    }}
                     >
-                      <SelectTrigger className="w-[150px]">
+                    <SelectTrigger className="w-[150px]">
                         <SelectValue placeholder="Filter" />
-                      </SelectTrigger>
-                      <SelectContent>
+                    </SelectTrigger>
+                    <SelectContent>
                         <SelectItem value="all">Semua</SelectItem>
                         <SelectItem value="tag">Tag</SelectItem>
                         <SelectItem value="bulan">Bulan</SelectItem>
-                      </SelectContent>
+                    </SelectContent>
                     </Select>
 
 
@@ -177,8 +235,17 @@ export default function PageArtikel() {
                           <SelectValue placeholder="Pilih Tag" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="adventure">Adventure</SelectItem>
-                          <SelectItem value="kesehatan">Kesehatan</SelectItem>
+                          {/* Dynamically list all unique tags from articles */}
+                          {Array.from(new Set(articles.map(a => a.tags?.id)))
+                            .filter(id => id !== undefined)
+                            .map(id => {
+                              const tag = articles.find(a => a.tags?.id === id)?.tags;
+                              return tag ? (
+                                <SelectItem key={tag.id} value={tag.id.toString()}>
+                                  {tag.nama}
+                                </SelectItem>
+                              ) : null;
+                            })}
                         </SelectContent>
                       </Select>
                     )}
@@ -226,7 +293,7 @@ export default function PageArtikel() {
                 </div>
                   <div className="overflow-auto rounded-lg border">
                     <Table>
-                      <TableHeader className="sticky top-0 z-10 bg-muted bg-[#3528AB] text-white [&_th]:text-white">
+                      <TableHeader className="sticky top-0 z-10 bg-[#3528AB] text-white [&_th]:text-white">
                         <TableRow className="break-words whitespace-normal">
                           <TableHead>No</TableHead>
                           <TableHead>Judul</TableHead>
@@ -238,122 +305,197 @@ export default function PageArtikel() {
                         </TableRow>
                       </TableHeader>
                       <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                        {currentData.map((data, index) => (
-                          <TableRow className="break-words whitespace-normal" key={data.id}>
-                            <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                            <TableCell>{data.judul}</TableCell>
-                            <TableCell>{data.tag}</TableCell>
-                            <TableCell>{data.konten}</TableCell>
-                            <TableCell>{new Date(data.tglPublish).toLocaleDateString('id-ID')}</TableCell>
-                            <TableCell>
-                              <Image src={data.foto}
-                                alt="Foto Artikel"
-                                width={50}
-                                height={50}
-                                className="rounded-md object-cover inline-block"
-                              />
-                            </TableCell>
-                            <TableCell className="flex justify-center gap-2 py-2">
-                              <Button
-                                variant="default"
-                                size="icon"
-                                className="text-white bg-yellow-500 hover:bg-yellow-600"
-                                onClick={() => handleEditClick(data)}
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                              </Button>
-
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    className="bg-red-500 hover:bg-red-600 text-white"
-                                    onClick={() => setSelectedItem(data.judul)}
-                                  >
-                                    <TrashIcon className="w-4 h-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      Yakin ingin menghapus artikel ini?
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Data artikel <strong>{selectedItem}</strong> akan dihapus secara permanen.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Batal</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      className="bg-red-500 hover:bg-red-600 text-white"
-                                      onClick={() => handleDelete(selectedItem!)}
-                                    >
-                                      Ya, Hapus
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                        {isLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="h-24 text-center">
+                              <div className="flex justify-center items-center">
+                                <Loader2 className="h-8 w-8 animate-spin text-[#3528AB]" />
+                                <span className="ml-2">Memuat artikel...</span>
+                              </div>
                             </TableCell>
                           </TableRow>
-                        ))}
+                        ) : error ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="h-24 text-center text-red-500">
+                              {error} - <Button variant="link" onClick={fetchArticles}>Coba lagi</Button>
+                            </TableCell>
+                          </TableRow>
+                        ) : currentData.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="h-24 text-center">
+                              Tidak ada artikel ditemukan
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          currentData.map((data, index) => (
+                            <TableRow className="break-words whitespace-normal" key={data.id}>
+                              <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                              <TableCell>{data.judul}</TableCell>
+                              <TableCell>{data.tags?.nama || 'No Tag'}</TableCell>
+                              <TableCell className="max-w-xs truncate">
+                                {data.konten.length > 100 ? `${data.konten.substring(0, 100)}...` : data.konten}
+                              </TableCell>
+                              <TableCell>{new Date(data.publishAt).toLocaleDateString('id-ID')}</TableCell>
+                              <TableCell>
+                                {(() => {
+                                    // Default placeholder path
+                                    const placeholderImage = "/image.png"; // Update with your actual path
+                                    
+                                    // If no image data at all, show placeholder
+                                    if (!data.foto) {
+                                    return (
+                                        <Image 
+                                        src={placeholderImage}
+                                        alt="Default Image"
+                                        width={50}
+                                        height={50}
+                                        className="rounded-md object-cover inline-block opacity-70"
+                                        />
+                                    );
+                                    }
+                                    
+                                    // Try to display the actual image, with error handling
+                                    return (
+                                    <Image 
+                                        src={data.foto}
+                                        alt="Foto Artikel"
+                                        width={50}
+                                        height={50}
+                                        className="rounded-md object-cover inline-block"
+                                        unoptimized={!data.foto.endsWith('.png')||!data.foto.endsWith('.jpg')} 
+                                        onError={(e) => {
+                                        // If image fails to load, replace with placeholder
+                                        e.currentTarget.src = placeholderImage;
+                                        e.currentTarget.classList.add('opacity-70');
+                                        }}
+                                    />
+                                    );
+                                })()}
+                                </TableCell>
+                              <TableCell className="flex justify-center gap-2 py-2">
+                                <Button
+                                  variant="default"
+                                  size="icon"
+                                  className="text-white bg-yellow-500 hover:bg-yellow-600"
+                                  onClick={() => handleEditClick(data)}
+                                >
+                                  <PencilIcon className="h-4 w-4" />
+                                </Button>
+
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      className="bg-red-500 hover:bg-red-600 text-white"
+                                      onClick={() => {
+                                        setSelectedItem(data.judul);
+                                        setSelectedId(data.id);
+                                      }}
+                                    >
+                                      <TrashIcon className="w-4 h-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Yakin ingin menghapus artikel ini?
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Data artikel <strong>{selectedItem}</strong> akan dihapus secara permanen.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-red-500 hover:bg-red-600 text-white"
+                                        onClick={handleDelete}
+                                      >
+                                        Ya, Hapus
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
                       </TableBody>
                     </Table>
                   </div>
 
                   {/* Pagination */}
-                  <div className="mt-4 flex justify-end">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm whitespace-nowrap">Baris per Halaman</span>
-                      <Select
-                        value={itemsPerPage.toString()}
-                        onValueChange={(value) => {
-                          setItemsPerPage(Number(value));
-                          setCurrentPage(1); // reset ke halaman 1
-                        }}
-                      >
-                        <SelectTrigger className="w-[70px] h-8">
-                          <SelectValue placeholder="Jumlah" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="10">10</SelectItem>
-                          <SelectItem value="20">20</SelectItem>
-                          <SelectItem value="20">30</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  {!isLoading && !error && filteredData.length > 0 && (
+                    <div className="mt-4 flex justify-end">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm whitespace-nowrap">Baris per Halaman</span>
+                        <Select
+                          value={itemsPerPage.toString()}
+                          onValueChange={(value) => {
+                            setItemsPerPage(Number(value));
+                            setCurrentPage(1); // reset ke halaman 1
+                          }}
+                        >
+                          <SelectTrigger className="w-[70px] h-8">
+                            <SelectValue placeholder="Jumlah" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="30">30</SelectItem>
+                          </SelectContent>
+                        </Select>
 
-                      <span className="text-sm item-center whitespace-nowrap mr-4 ml-4">
-                        Halaman {currentPage} dari {totalPages}
-                      </span>
-                      <Pagination>
-                        <PaginationContent>
-                          <PaginationItem>
-                            <PaginationPrevious
-                              onClick={() => handlePageChange(currentPage - 1)}
-                              className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                            />
-                          </PaginationItem>
-
-                          {Array.from({ length: totalPages }).map((_, i) => (
-                            <PaginationItem key={i}>
-                              <PaginationLink
-                                isActive={currentPage === i + 1}
-                                onClick={() => handlePageChange(i + 1)}
-                              >
-                                {i + 1}
-                              </PaginationLink>
+                        <span className="text-sm item-center whitespace-nowrap mr-4 ml-4">
+                          Halaman {currentPage} dari {totalPages}
+                        </span>
+                        <Pagination>
+                          <PaginationContent>
+                            <PaginationItem>
+                              <PaginationPrevious
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                              />
                             </PaginationItem>
-                          ))}
 
-                          <PaginationItem>
-                            <PaginationNext
-                              onClick={() => handlePageChange(currentPage + 1)}
-                              className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                            />
-                          </PaginationItem>
-                        </PaginationContent>
-                      </Pagination>
+                            {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                              // Show pagination differently if many pages
+                              let pageNum;
+                              if (totalPages <= 5) {
+                                pageNum = i + 1;
+                              } else {
+                                // For many pages, show current page and neighbors
+                                if (currentPage <= 3) {
+                                  pageNum = i + 1;
+                                } else if (currentPage >= totalPages - 2) {
+                                  pageNum = totalPages - 4 + i;
+                                } else {
+                                  pageNum = currentPage - 2 + i;
+                                }
+                              }
+                              
+                              return (
+                                <PaginationItem key={i}>
+                                  <PaginationLink
+                                    isActive={currentPage === pageNum}
+                                    onClick={() => handlePageChange(pageNum)}
+                                  >
+                                    {pageNum}
+                                  </PaginationLink>
+                                </PaginationItem>
+                              );
+                            })}
+
+                            <PaginationItem>
+                              <PaginationNext
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                              />
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>

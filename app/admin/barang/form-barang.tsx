@@ -34,7 +34,7 @@ type FormBarangProps = {
     harga: string;
     stok: string;
     penalti: string;
-    foto?: any;
+    foto?: string;
   };
 }
 
