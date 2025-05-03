@@ -1,65 +1,99 @@
-import { z } from "zod"
 import { useForm } from "react-hook-form"
+import * as z from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
+import { useState, useEffect } from "react"
+import { format } from "date-fns"
+import { CalendarIcon } from "lucide-react"
+
+// Import UI components
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { format } from "date-fns"
-import { CalendarIcon } from "lucide-react"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
-import { useEffect } from "react"
 
+// Define our form schema
 const formSchema = z.object({
   judul: z.string().min(1, { message: "Judul wajib diisi" }),
   tags: z.string().optional(),
   konten: z.string().min(1, { message: "Konten wajib diisi" }),
-  publish_date: z.preprocess(
-    (val) => (typeof val === "string" ? new Date(val) : val),
-    z.date({ required_error: "Tanggal wajib diisi" })
-  ),
-  foto: z.any().refine((file) => file instanceof File || file?.length > 0, {
-    message: "Foto wajib diunggah",
-  }),
+  publish_date: z.date({ required_error: "Tanggal wajib diisi" }),
 })
 
-type FormBuatArtikelProps = {
-  defaultValues?: {
-    judul: string;
-    tags?: string;
-    konten: string;
-    publish_date: Date;
-    foto?: File | null;
-  };
-  onSubmitSuccess?: (data: any) => void;
+// Form data type based on schema
+type FormData = z.infer<typeof formSchema>
+
+// Complete data type including file
+interface CompleteFormData extends FormData {
+  foto: File | null
 }
 
-export function FormBuatArtikel({ defaultValues, onSubmitSuccess }: FormBuatArtikelProps) {
+// Define types for our component props
+type FormBuatArtikelProps = {
+  defaultValues?: Partial<FormData>
+  onSubmitSuccess?: (data: CompleteFormData) => void
+}
+
+export function FormBuatArtikel({
+  defaultValues,
+  onSubmitSuccess,
+}: FormBuatArtikelProps) {
+  // State for file upload (handled separately from the form)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  
+  // Setup the form
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      judul: defaultValues?.judul ?? "",
-      tags: defaultValues?.tags ?? "",
-      konten: defaultValues?.konten ?? "",
-      publish_date: defaultValues?.publish_date ?? new Date(),
-      foto: undefined,
+      judul: defaultValues?.judul || "",
+      tags: defaultValues?.tags || "",
+      konten: defaultValues?.konten || "",
+      publish_date: defaultValues?.publish_date || new Date(),
     },
   })
 
+  // Reset form when defaultValues change
   useEffect(() => {
     if (defaultValues) {
       form.reset({
-        ...defaultValues,
-        foto: undefined, // Reset file input saat edit
+        judul: defaultValues.judul || "",
+        tags: defaultValues.tags || "",
+        konten: defaultValues.konten || "",
+        publish_date: defaultValues.publish_date || new Date(),
       })
+      setSelectedFile(null)
     }
   }, [defaultValues, form])
 
-  const onSubmit = (data: any) => {
-    console.log("Submitted:", data)
-    onSubmitSuccess?.(data)
+  // Form submission handler
+  const onSubmit = (data: FormData) => {
+    // Combine form data with the file
+    const completeData: CompleteFormData = {
+      ...data,
+      foto: selectedFile
+    }
+    
+    console.log("Submitted:", completeData)
+    onSubmitSuccess?.(completeData)
+  }
+
+  // Handle file change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null
+    setSelectedFile(file)
   }
 
   return (
@@ -121,21 +155,21 @@ export function FormBuatArtikel({ defaultValues, onSubmitSuccess }: FormBuatArti
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button
-                      variant={"outline"}
+                      variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
                         !field.value && "text-muted-foreground"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {field.value instanceof Date ? format(field.value, "PPP") : <span>Pilih tanggal</span>}
+                      {field.value ? format(field.value, "PPP") : <span>Pilih tanggal</span>}
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto p-0">
                   <Calendar
                     mode="single"
-                    selected={field.value as Date | undefined}
+                    selected={field.value}
                     onSelect={field.onChange}
                     disabled={(date) => date > new Date()}
                   />
@@ -146,27 +180,22 @@ export function FormBuatArtikel({ defaultValues, onSubmitSuccess }: FormBuatArti
           )}
         />
 
-        {/* Foto Upload */}
-        <FormField
-          control={form.control}
-          name="foto"
-          render={({ field: { onChange, ...rest } }) => (
-            <FormItem>
-              <FormLabel>Foto</FormLabel>
-              <FormControl>
-                <Input type="file" onChange={(e) => onChange(e.target.files?.[0])} {...rest} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Foto Upload - Handled outside the form control */}
+        <div className="space-y-2">
+          <FormLabel htmlFor="foto">Foto</FormLabel>
+          <Input
+            id="foto"
+            type="file"
+            onChange={handleFileChange}
+            accept="image/*"
+          />
+        </div>
 
         <div className="pt-2 flex justify-end gap-2">
           <Button type="submit" className="bg-[#3528AB] text-white hover:bg-[#2e2397]">
             Simpan
           </Button>
         </div>
-
       </form>
     </Form>
   )

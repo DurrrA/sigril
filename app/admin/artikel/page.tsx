@@ -32,7 +32,26 @@ import { Input } from "@/components/ui/input";
 import { FormBuatArtikel } from "./form-artikel";
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from "@/components/ui/pagination";
 
-const dummyArtikel = [
+// Define interfaces for our data structures
+interface ArtikelData {
+  id: number;
+  judul: string;
+  tag: string;
+  konten: string;
+  tglPublish: string;
+  foto: string;
+}
+
+// This interface should match the form's expected structure
+interface EditArtikelData {
+  judul: string;
+  tags: string;
+  konten: string;
+  publish_date: Date;
+  foto: File | null;
+}
+
+const dummyArtikel: ArtikelData[] = [
   {
     id: 1,
     judul: "Alat Terbaru Super Canggih",
@@ -47,7 +66,7 @@ export default function PageArtikel() {
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
   const [isTambahOpen, setIsTambahOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [editData, setEditData] = useState<any>(null)
+  const [editData, setEditData] = useState<EditArtikelData | null>(null)
 
   const [searchKeyword, setSearchKeyword] = useState("");
     const [selectedFilter, setSelectedFilter] = useState("");
@@ -94,7 +113,7 @@ export default function PageArtikel() {
     setSelectedItem(null)
   }
 
-  const handleEditClick = (artikel: any) => {
+  const handleEditClick = (artikel: ArtikelData) => {
     setEditData({
       judul: artikel.judul,
       tags: artikel.tag,

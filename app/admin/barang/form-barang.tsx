@@ -1,5 +1,10 @@
 "use client"
 
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useEffect, useState } from "react"
+
 import {
   Form,
   FormControl,
@@ -10,58 +15,85 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useEffect } from "react"
 
+// Define our form schema
 const formSchema = z.object({
   nama: z.string().min(1, { message: "Nama barang wajib diisi" }),
   kategori: z.string(),
   harga: z.string(),
   stok: z.string(),
-  penalti: z.string(),
-  foto: z.any(),
+  hargaPenalti: z.string(),
 })
 
-type FormBarangProps = {
-  defaultValues?: {
-    nama: string;
-    kategori: string;
-    harga: string;
-    stok: string;
-    penalti: string;
-    foto?: any;
-  };
+// Form data type based on schema
+type FormData = z.infer<typeof formSchema>
+
+// Complete data type including file
+interface CompleteFormData extends FormData {
+  foto: File | null
 }
 
-export function FormTambahBarang({ defaultValues }: FormBarangProps) {
-  const form = useForm({
+type FormBarangProps = {
+  defaultValues?: Partial<FormData> & { foto?: File | null }
+  onSubmitSuccess?: (data: CompleteFormData) => void
+}
+
+export function FormTambahBarang({ defaultValues, onSubmitSuccess }: FormBarangProps) {
+  // State for file upload (handled separately from the form)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      nama: "",
-      kategori: "",
-      harga: "",
-      stok: "",
-      penalti: "",
-      foto: undefined,
-      ...defaultValues, // <-- kalau ada defaultValues, override
+      nama: defaultValues?.nama || "",
+      kategori: defaultValues?.kategori || "",
+      harga: defaultValues?.harga || "",
+      stok: defaultValues?.stok || "",
+      hargaPenalti: defaultValues?.hargaPenalti || "",
     },
   })
 
-  // Supaya kalau defaultValues berubah (pas klik edit barang baru), form ikut update
+  useEffect(() => {
+    if (defaultValues?.foto) {
+      setSelectedFile(defaultValues.foto)
+    }
+  }, [])
+
   useEffect(() => {
     if (defaultValues) {
-      form.reset(defaultValues);
-    }
-  }, [defaultValues, form]);
+      form.reset({
+        nama: defaultValues.nama || "",
+        kategori: defaultValues.kategori || "",
+        harga: defaultValues.harga || "",
+        stok: defaultValues.stok || "",
+        hargaPenalti: defaultValues.hargaPenalti || "",
+      })
 
-  const onSubmit = (values: any) => {
-    if (defaultValues) {
-      console.log("Edit barang:", values)
-    } else {
-      console.log("Barang baru:", values)
+      if (defaultValues.foto) {
+        setSelectedFile(defaultValues.foto)
+      } else {
+        setSelectedFile(null)
+      }
     }
+  }, [defaultValues, form])
+
+  const onSubmit = (values: FormData) => {
+    const completeData: CompleteFormData = {
+      ...values,
+      foto: selectedFile
+    }
+    
+    if (defaultValues) {
+      console.log("Edit barang:", completeData)
+    } else {
+      console.log("Barang baru:", completeData)
+    }
+    
+    onSubmitSuccess?.(completeData)
+  }
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null
+    setSelectedFile(file)
   }
 
   return (
@@ -123,7 +155,7 @@ export function FormTambahBarang({ defaultValues }: FormBarangProps) {
         </div>
         <FormField
           control={form.control}
-          name="penalti"
+          name="hargaPenalti"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Harga Penalti</FormLabel>
@@ -134,19 +166,18 @@ export function FormTambahBarang({ defaultValues }: FormBarangProps) {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="foto"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Foto</FormLabel>
-              <FormControl>
-                <Input type="file" onChange={(e) => field.onChange(e.target.files?.[0])} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        
+        {/* Foto Upload - Handled separately from form validation */}
+        <div className="space-y-2">
+          <FormLabel htmlFor="foto">Foto</FormLabel>
+          <Input 
+            id="foto"
+            type="file" 
+            onChange={handleFileChange}
+            accept="image/*" 
+          />
+        </div>
+        
         <div className="pt-2 flex justify-end gap-2">
           <Button type="submit" className="bg-[#3528AB] hover:bg-[#2e2397] text-white">
             {defaultValues ? "Update" : "Simpan"}

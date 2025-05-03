@@ -15,10 +15,12 @@ import {
   AlertDialogDescription,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { FormTambahBarang } from "@/app/admin/barang/form-barang"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { SiteHeader } from "@/components/site-header"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { useState } from "react";
 import {
   Select,
   SelectTrigger,
@@ -27,29 +29,48 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { FormTambahBarang } from "@/app/admin/barang/form-barang";
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from "@/components/ui/pagination";
-import { Tabs, TabsContent } from "@/components/ui/tabs"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { useState } from "react"
 
-const dummyBarang = [
+// Define interfaces for our data structures
+interface BarangData {
+  id: number;
+  nama: string;
+  kategori: string;
+  harga: number;
+  stok: number;
+  hargaPenalti: number;
+  foto: string;
+}
+
+// This interface should match the form's expected structure
+interface EditBarangData {
+  nama: string;
+  kategori: string;
+  harga: string; // Changed to string to match the form's expected type
+  stok: string;  // Changed to string to match the form's expected type
+  hargaPenalti: string; // Changed to string to match the form's expected type
+  foto: File | null;
+}
+
+const dummyBarang: BarangData[] = [
   {
     id: 1,
-    nama: "Capit",
-    kategori: "Grill",
-    harga: 20000,
-    stok: 30,
-    hargaPenalti: 5000,
+    nama: "Mesin Las Portable",
+    kategori: "Elektronik",
+    harga: 1250000,
+    stok: 10,
+    hargaPenalti: 150000,
+    foto: '/images/mesin_las.png',
   },
 ]
 
 export default function PageBarang() {
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogMode, setDialogMode] = useState<"add" | "edit">("add")
-  const [selectedBarang, setSelectedBarang] = useState<any>(null)
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isTambahOpen, setIsTambahOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editData, setEditData] = useState<EditBarangData | null>(null)
+
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("");
   const [filterValue, setFilterValue] = useState("");
@@ -58,15 +79,18 @@ export default function PageBarang() {
     const keywordMatch =
       data.nama.toLowerCase().includes(searchKeyword.toLowerCase()) ||
       data.kategori.toLowerCase().includes(searchKeyword.toLowerCase());
-  
+
     let filterMatch = true;
 
     if (selectedFilter === "kategori" && filterValue) {
       filterMatch = data.kategori.toLowerCase() === filterValue.toLowerCase();
     }
-  
+
     return keywordMatch && filterMatch;
   });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
@@ -82,58 +106,65 @@ export default function PageBarang() {
   };
 
   const handleDelete = (itemName: string) => {
-    console.log(`Hapus item: ${itemName}`)
+    console.log(`Hapus barang: ${itemName}`)
     setSelectedItem(null)
   }
 
-  const openAddDialog = () => {
-    setDialogMode("add")
-    setSelectedBarang(null)
-    setDialogOpen(true)
-  }
-
-  const openEditDialog = (barang: any) => {
-    setDialogMode("edit")
-    setSelectedBarang(barang)
-    setDialogOpen(true)
+  const handleEditClick = (barang: BarangData) => {
+    setEditData({
+      nama: barang.nama,
+      kategori: barang.kategori,
+      harga: barang.harga.toString(), // Convert number to string for the form
+      stok: barang.stok.toString(),   // Convert number to string for the form
+      hargaPenalti: barang.hargaPenalti.toString(), // Convert number to string for the form
+      foto: null,
+    })
+    setIsEditOpen(true)
   }
 
   return (
     <SidebarProvider>
       <AppSidebar variant="inset" />
-      <SidebarInset className="bg-white rounded-l-xl">
+      <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-              <Tabs
-                defaultValue="outline"
-                className="flex w-full flex-col justify-start gap-6"
-              >
-                <TabsContent
-                  value="outline"
-                  className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
-                >
+              <Tabs defaultValue="outline" className="flex w-full flex-col justify-start gap-6">
+                <TabsContent value="outline" className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6">
                   <h1 className="text-2xl font-bold">Manajemen Barang</h1>
-                  <div className="relative flex items-center justify-between">
-                    <Button
-                      variant="default"
-                      size="default"
-                      className="text-white bg-[#3528AB] hover:bg-[#2e2397]"
-                      onClick={openAddDialog}
-                    >
-                      <PlusIcon className="h-4 w-4" />
-                      <span className="hidden lg:inline">Tambah Barang</span>
-                    </Button>
 
-                    {/* Filter bar */}
+                  <div className="relative flex items-center justify-between">
+                    <Dialog open={isTambahOpen} onOpenChange={setIsTambahOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="default" size="default" className="text-white bg-[#3528AB] hover:bg-[#2e2397]">
+                          <PlusIcon className="h-4 w-4" />
+                          <span className="hidden lg:inline">Tambah Barang</span>
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <FormTambahBarang onSubmitSuccess={() => setIsTambahOpen(false)} />
+                      </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                      <DialogContent className="max-w-md">
+                        {editData && (
+                          <FormTambahBarang
+                            defaultValues={editData}
+                            onSubmitSuccess={() => setIsEditOpen(false)}
+                          />
+                        )}
+                      </DialogContent>
+                    </Dialog>
+
+                    {/* Filter dan Pencarian */}
                     <div className="flex justify-end gap-2 items-center">
-                      {/* Dropdown Kategori Filter */}
                       <Select
                         value={selectedFilter}
                         onValueChange={(value) => {
                           setSelectedFilter(value);
-                          setFilterValue(""); // Reset value filter saat kategori diganti
+                          setFilterValue("");
                           setCurrentPage(1);
                         }}
                       >
@@ -146,8 +177,6 @@ export default function PageBarang() {
                         </SelectContent>
                       </Select>
 
-
-                      {/* Filter value berdasarkan kategori */}
                       {selectedFilter === "kategori" && (
                         <Select
                           onValueChange={(value) => {
@@ -160,15 +189,14 @@ export default function PageBarang() {
                             <SelectValue placeholder="Pilih Kategori" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="adventure">Adventure</SelectItem>
-                            <SelectItem value="kesehatan">Kesehatan</SelectItem>
+                            <SelectItem value="elektronik">Elektronik</SelectItem>
+                            <SelectItem value="perkakas">Perkakas</SelectItem>
                           </SelectContent>
                         </Select>
                       )}
 
-                      {/* Search input */}
                       <Input
-                        placeholder="Cari barang..."
+                        placeholder="Cari nama barang..."
                         value={searchKeyword}
                         onChange={(e) => {
                           setSearchKeyword(e.target.value);
@@ -179,9 +207,10 @@ export default function PageBarang() {
                     </div>
                   </div>
 
+                  {/* Tabel Data */}
                   <div className="overflow-auto rounded-lg border">
                     <Table>
-                      <TableHeader className="sticky top-0 z-10 bg-muted bg-[#3528AB] text-white [&_th]:text-white">
+                      <TableHeader className="sticky top-0 z-10 bg-[#3528AB] text-white [&_th]:text-white">
                         <TableRow>
                           <TableHead>No</TableHead>
                           <TableHead>Nama</TableHead>
@@ -203,20 +232,14 @@ export default function PageBarang() {
                             <TableCell>{data.stok}</TableCell>
                             <TableCell>Rp{data.hargaPenalti.toLocaleString()}</TableCell>
                             <TableCell>
-                              <Image
-                                src="/images/logo_kenamplan.png"
-                                alt="Foto Capit"
-                                width={50}
-                                height={50}
-                                className="rounded-md object-cover inline-block"
-                              />
+                              <Image src={data.foto} alt="Foto Barang" width={50} height={50} className="rounded-md object-cover" />
                             </TableCell>
                             <TableCell className="flex justify-center gap-2 py-2">
                               <Button
                                 variant="default"
                                 size="icon"
                                 className="text-white bg-yellow-500 hover:bg-yellow-600"
-                                onClick={() => openEditDialog(data)}
+                                onClick={() => handleEditClick(data)}
                               >
                                 <PencilIcon className="h-4 w-4" />
                               </Button>
@@ -257,7 +280,7 @@ export default function PageBarang() {
                       </TableBody>
                     </Table>
                   </div>
-                  
+
                   {/* Pagination */}
                   <div className="mt-4 flex justify-end">
                     <div className="flex items-center space-x-2">
@@ -266,7 +289,7 @@ export default function PageBarang() {
                         value={itemsPerPage.toString()}
                         onValueChange={(value) => {
                           setItemsPerPage(Number(value));
-                          setCurrentPage(1); // reset ke halaman 1
+                          setCurrentPage(1);
                         }}
                       >
                         <SelectTrigger className="w-[70px] h-8">
@@ -275,7 +298,7 @@ export default function PageBarang() {
                         <SelectContent>
                           <SelectItem value="10">10</SelectItem>
                           <SelectItem value="20">20</SelectItem>
-                          <SelectItem value="20">30</SelectItem>
+                          <SelectItem value="30">30</SelectItem>
                         </SelectContent>
                       </Select>
 
@@ -317,25 +340,6 @@ export default function PageBarang() {
             </div>
           </div>
         </div>
-
-        {/* Ini dia Dialog Tambah/Edit Barang */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogTitle>
-              {dialogMode === "add" ? "Tambah Barang" : "Edit Barang"}
-            </DialogTitle>
-            <FormTambahBarang
-              defaultValues={dialogMode === "edit" ? {
-                nama: selectedBarang?.nama || "",
-                kategori: selectedBarang?.kategori || "",
-                harga: selectedBarang?.harga?.toString() || "",
-                stok: selectedBarang?.stok?.toString() || "",
-                penalti: selectedBarang?.hargaPenalti?.toString() || "",
-                foto: undefined,
-              } : undefined}
-            />
-          </DialogContent>
-        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   )
