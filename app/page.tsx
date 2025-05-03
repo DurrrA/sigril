@@ -1,205 +1,206 @@
-import NewsCard from "../components/ui/NewsCard";
+"use client";
 import Image from "next/image";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import NewsCarousel from "../components/ui/NewsCarousel";
 import ProductCarousel from "../components/ui/ProductCarousel";
 import ReviewCarousel from "../components/ui/ReviewCarousel";
-import MiddleBar from "../components/ui/MiddleBar";
-import NewsCarousel from "../components/ui/NewsCarousel";
+
+interface NewsItem {
+  id: number;
+  title: string;
+  image: string;
+  link: string;
+}
+
+interface Category {
+  id: number;
+  nama: string;
+}
+
+interface AppProduct {
+  id: number;
+  kategori_id: number;
+  nama: string;
+  deskripsi: string;
+  harga: number;
+  foto: string;
+}
+
+interface Review {
+  id: number;
+  user: { id: number; nama: string; foto: string };
+  rating: number;
+  komentar?: string;
+}
+
+
+function shuffleArray<T>(array: T[]): T[] {
+  return Array.isArray(array)
+    ? array.map((value) => ({ value, sort: Math.random() }))
+           .sort((a, b) => a.sort - b.sort)
+           .map(({ value }) => value)
+    : [];
+}
 
 export default function Home() {
-  const news = [
-    {
-      image: "/dummy1.png",
-    },
-    {
-      image: "/dummy2.png",
-    },
-    {
-      image: "/dummy3.png",
-    },
-    {
-      image: "/dummy1.png",
-    },
-  ];
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<AppProduct[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const allProducts = [
-    {
-      id: "1",
-      image: "/dummy1.png",
-      name: "Alat Grill Portable",
-      price: "Rp 150.000",
-      description: "Alat grill portable untuk BBQ bersama keluarga.",
-      category: "Alat Grill",
-    },
-    {
-      id: "2",
-      image: "/dummy2.png",
-      name: "Set Piknik Estetik",
-      price: "Rp 200.000",
-      description: "Set perlengkapan piknik estetik untuk acara outdoor.",
-      category: "Perlengkapan Piknik",
-    },
-    {
-      id: "3",
-      image: "/dummy3.png",
-      name: "Tenda Camping Nyaman",
-      price: "Rp 300.000",
-      description: "Tenda camping untuk pengalaman outdoor yang nyaman.",
-      category: "Camping",
-    },
-    {
-      id: "4",
-      image: "/dummy1.png",
-      name: "Lampu LED Tenaga Surya",
-      price: "Rp 100.000",
-      description: "Lampu LED tenaga surya untuk penerangan saat berkemah.",
-      category: "Camping",
-    },
-    {
-      id: "5",
-      image: "/dummy2.png",
-      name: "Grill Pan Mini",
-      price: "Rp 175.000",
-      description: "Grill pan mini untuk kegiatan memasak outdoor.",
-      category: "Alat Grill",
-    },
-    {
-      id: "6",
-      image: "/dummy3.png",
-      name: "Tikar Piknik Estetik",
-      price: "Rp 85.000",
-      description: "Tikar piknik lipat dengan motif estetik.",
-      category: "Perlengkapan Piknik",
-    },
-    {
-      id: "7",
-      image: "/dummy1.png",
-      name: "Alat Grill Portable",
-      price: "Rp 150.000",
-      description: "Alat grill portable untuk BBQ bersama keluarga.",
-      category: "Alat Grill",
-    },
-    {
-      id: "8",
-      image: "/dummy1.png",
-      name: "Alat Grill Portable",
-      price: "Rp 150.000",
-      description: "Alat grill portable untuk BBQ bersama keluarga.",
-      category: "Alat Grill",
-    },
-    {
-      id: "9",
-      image: "/dummy1.png",
-      name: "Alat Grill Portable",
-      price: "Rp 150.000",
-      description: "Alat grill portable untuk BBQ bersama keluarga.",
-      category: "Alat Grill",
-    },
-    {
-      id: "10",
-      image: "/dummy1.png",
-      name: "Alat Grill Portable",
-      price: "Rp 150.000",
-      description: "Alat grill portable untuk BBQ bersama keluarga.",
-      category: "Alat Grill",
-    },
-    {
-      id: "11",
-      image: "/dummy1.png",
-      name: "Alat Grill Portable",
-      price: "Rp 150.000",
-      description: "Alat grill portable untuk BBQ bersama keluarga.",
-      category: "Alat Grill",
-    },
-  ];
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        
+        const kategoriRes = await fetch('/api/kategori');
+        const kategoriJson = await kategoriRes.json();
+        setCategories(Array.isArray(kategoriJson.data) ? kategoriJson.data : []);
 
-  // Filter produk berdasarkan kategori
-  const grillProducts = allProducts.filter((product) => product.category === "Alat Grill");
-  const picnicProducts = allProducts.filter((product) => product.category === "Perlengkapan Piknik");
-  const campingProducts = allProducts.filter((product) => product.category === "Camping");
-  const otherProducts = allProducts.filter((product) => product.category === "Lain-lain");
+        
+        const produkRes = await fetch('/api/barang');
+        const produkJson = await produkRes.json();
+        setProducts(Array.isArray(produkJson.data) ? produkJson.data : []);
 
-  const reviews = [
-    {
-      name: "John Doe",
-      review: "Acara BBQ keluarga jadi lebih seru berkat KENAM.PLAN! Peralatannya lengkap, grill-nya mudah digunakan, dan semuanya bersih serta berkualitas. Nggak perlu repot, tinggal pakai dan langsung menikmati BBQ bareng keluarga. Pasti bakal sewa lagi!",
-    },
-    {
-      name: "Jane Smith",
-      review: "Sewa Big Family BBQ Package di KENAM.PLAN benar-benar worth it! Semua perlengkapan sudah disiapkan, dekorasi juga estetik banget. Momen kumpul keluarga jadi lebih spesial tanpa harus ribet persiapan. Sangat direkomendasikan!",
-    },
-    {
-      name: "Michael Johnson",
-      review: "Acara BBQ keluarga jadi lebih seru berkat KENAM.PLAN! Peralatannya lengkap, grill-nya mudah digunakan, dan semuanya bersih serta berkualitas. Nggak perlu repot, tinggal pakai dan langsung menikmati BBQ bareng keluarga. Pasti bakal sewa lagi!",
-    },
-    {
-      name: "Emily Davis",
-      review: "Sewa Big Family BBQ Package di KENAM.PLAN benar-benar worth it! Semua perlengkapan sudah disiapkan, dekorasi juga estetik banget. Momen kumpul keluarga jadi lebih spesial tanpa harus ribet persiapan. Sangat direkomendasikan!",
-    },
-  ];
+        
+        const reviewRes = await fetch('/api/review');
+        const reviewJson = await reviewRes.json();
+        const reviewData: Review[] = Array.isArray(reviewJson.data)
+          ? reviewJson.data.map((r: { id: number; user: { id: number; username?: string; full_name?: string; email: string; avatar?: string }; rating: number; komentar?: string }) => ({
+              id: r.id,
+              user: {
+                id: r.user.id,
+                nama: r.user.username || r.user.full_name || r.user.email,
+                foto: r.user.avatar || ''
+              },
+              rating: r.rating,
+              komentar: r.komentar
+            }))
+          : [];
+        setReviews(shuffleArray(reviewData));
+
+       
+        const artikelRes = await fetch('/api/artikel');
+        const artikelJson = await artikelRes.json();
+        const artikelData: { id: number; judul: string; foto: string }[] = Array.isArray(artikelJson.data) ? artikelJson.data : [];
+        setNews(
+          shuffleArray(
+            artikelData.map((a) => ({
+              id: a.id,
+              title: a.judul,
+              image: a.foto,
+              link: `/artikel/${a.id}`
+            }))
+          )
+        );
+      } catch (error) {
+        console.error('Gagal fetch data:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div className="text-center mt-10">Memuat...</div>;
+  }
+
+  
+  const groupedProducts: Record<number, AppProduct[]> = {};
+  categories.forEach((cat) => {
+    groupedProducts[cat.id] = products.filter((p) => p.kategori_id === cat.id);
+  });
+
+  
+  const normalizeImage = (path: string) =>
+    path.startsWith('/') || path.startsWith('http') ? path : `/${path}`;
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <main className="flex-grow">
-        {/* Header Image */}
         <div className="relative w-full h-[calc(100vw*9/16)] -mt-10">
           <Image
-            src="/head.png"
+            src={normalizeImage('head.png')}
             alt="Head Image"
             fill
-            style={{ objectFit: "contain" }}
+            style={{ objectFit: 'contain' }}
             priority
           />
         </div>
 
-        {/* Intro Section */}
+
         <div>
           <h1 className="text-4xl font-bold text-center mt-20 mx-20">
             🌿 KENAM.PLAN – SEWA ALAT GRILL, PIKNIK & CAMPING 🌿
           </h1>
           <p className="text-center text-lg mt-4 mx-20">
-            Ingin mengadakan piknik estetik, BBQ seru, atau camping nyaman tanpa repot? KENAM.PLAN siap mewujudkan pengalaman outdoor terbaik untukmu dengan menyediakan sewa alat grill, perlengkapan piknik, dan camping berkualitas, serta layanan set foto produk aesthetic dan Picnic Planner untuk acara spesial seperti bridal shower, gender reveal, hingga birthday picnic. Tak perlu ribet, cukup sewa dan nikmati momen berharga bersama orang terdekat—KENAM.PLAN siap membuat acara outdoor-mu lebih berkesan!
+            Ingin mengadakan piknik estetik, BBQ seru, atau camping nyaman tanpa repot? KENAM.PLAN siap mewujudkan pengalaman outdoor terbaik untukmu dengan menyediakan sewa alat grill, perlengkapan piknik, dan camping berkualitas...
           </p>
           <p className="text-center text-lg mt-4 mx-10 mb-20">
             💛 Hubungi kami sekarang dan wujudkan piknik impianmu! 🚀
           </p>
         </div>
 
-        {/* News Section */}
+
         <div>
           <h2 className="text-4xl font-bold text-center mt-30">PENGUMUMAN</h2>
-          <div className="mt-10 mb-10 px-6 mx-20">
-            <NewsCarousel news={news} />
+          <p className="text-center text-base text-gray-600 mt-4 mb-6 mx-10">
+            Temukan berbagai informasi, tips, dan update menarik seputar kegiatan outdoor dari tim kami.
+          </p>
+          <div className="mt-4 mb-10 px-6 mx-20">
+            <NewsCarousel
+              news={news.map((n) => ({
+                title: n.title,
+                image: normalizeImage(n.image),
+                link: n.link
+              }))}
+            />
           </div>
         </div>
 
-        {/* Product Carousels */}
-        <div className="mt-30 px-6 mx-20">
-          <ProductCarousel category="Alat Grill" products={grillProducts} />
-        </div>
-        <div className="mt-10 px-6 mx-20">
-          <ProductCarousel category="Perlengkapan Piknik" products={picnicProducts} />
-        </div>
-        <div className="mt-10 px-6 mx-20">
-          <ProductCarousel category="Camping" products={campingProducts} />
-        </div>
+  
+        {categories.map((cat) => (
+          <div key={cat.id} className="mt-10 px-6 mx-20">
+            <ProductCarousel
+              category={cat.nama}
+              products={
+                (groupedProducts[cat.id] || []).map((p) => ({
+                  id: p.id.toString(),
+                  image: normalizeImage(p.foto),
+                  name: p.nama,
+                  price: p.harga.toString(),
+                  description: p.deskripsi
+                }))
+              }
+            />
+          </div>
+        ))}
 
-        {/* Middle Bar */}
+
         <div className="mt-20 mb-20">
-          <MiddleBar />
+          <div className="border-t border-gray-200 w-3/4 mx-auto" />
         </div>
 
-        {/* Reviews Section */}
+
         <div>
-          <h1 className="text-4xl font-bold text-center mt-20">Review Pelanggan</h1>
-          <div className="mt-10 px-6 mx-20 mb-15">
-            <ReviewCarousel reviews={reviews} />
-          </div>
-          <button className="bg-[#3528AB] text-white px-6 py-2 rounded-full hover:bg-white hover:text-[#3528AB] transition duration-300 align-center mx-auto block mb-20">
-            Sebaran Pelanggan
-          </button>
+          <h2 className="text-4xl font-bold text-center mt-20 mb-8">Review Pelanggan</h2>
+          <ReviewCarousel
+            reviews={reviews.slice(0, 4).map((r) => ({
+              profileImage: normalizeImage(r.user.foto),
+              name: r.user.nama,
+              review: r.komentar || ''
+            }))}
+          />
         </div>
       </main>
+
+
+      <div className="py-10">
+        <button className="bg-[#3528AB] text-white px-6 py-2 rounded-full hover:bg-white hover:text-[#3528AB] transition duration-300 block mx-auto">
+          Sebaran Pelanggan
+        </button>
+      </div>
     </div>
   );
 }
