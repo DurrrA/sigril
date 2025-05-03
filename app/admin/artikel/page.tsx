@@ -1,6 +1,6 @@
 "use client"
 
-import { PencilIcon, TrashIcon, PlusIcon, Loader2 } from "lucide-react";
+import { PencilIcon, TrashIcon, PlusIcon  } from "lucide-react";
 import Image from "next/image"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
