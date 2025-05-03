@@ -13,6 +13,9 @@ export async function GET() {
             include: {
                 barang: true,
             },
+            orderBy: {
+                nama: "asc",
+            },
         });
 
         return NextResponse.json(

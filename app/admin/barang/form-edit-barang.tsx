@@ -18,13 +18,16 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import Image from "next/image"
+import { Barang } from "@/interfaces/barang.interfaces"
 
 interface Kategori {
   id: number;
   nama: string;
 }
 
-interface FormTambahBarangProps {
+interface FormEditBarangProps {
+  barang: Barang;
   onSuccess: () => void;
 }
 
@@ -35,24 +38,25 @@ const formSchema = z.object({
   stok: z.string().min(1, { message: "Stok wajib diisi" }),
   deskripsi: z.string().min(1, { message: "Deskripsi wajib diisi" }),
   harga_pinalti_per_jam: z.string().min(1, { message: "Harga penalti wajib diisi" }),
-  foto: z.instanceof(File).optional(),
+  foto: z.union([z.instanceof(File), z.string()]).optional(),
 })
 
-export function FormTambahBarang({ onSuccess }: FormTambahBarangProps) {
+export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [kategoriList, setKategoriList] = useState<Kategori[]>([]);
   const [loadingKategori, setLoadingKategori] = useState(true);
+  const [previewImage, setPreviewImage] = useState<string | null>(barang.foto || null);
   
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      nama: "",
-      kategori_id: "",
-      harga: "",
-      stok: "",
-      deskripsi: "",
-      harga_pinalti_per_jam: "",
-      foto: undefined,
+      nama: barang.nama,
+      kategori_id: barang.kategori_id.toString(),
+      harga: barang.harga.toString(),
+      stok: barang.stok.toString(),
+      deskripsi: barang.deskripsi,
+      harga_pinalti_per_jam: barang.harga_pinalti_per_jam.toString(),
+      foto: barang.foto,
     },
   })
 
@@ -81,9 +85,10 @@ export function FormTambahBarang({ onSuccess }: FormTambahBarangProps) {
     try {
       setIsSubmitting(true);
       
-      // Handle file upload first if there's an image
-      let imageUrl = "";
-      if (values.foto) {
+      // Handle file upload first if there's a new image
+      let imageUrl = typeof values.foto === "string" ? values.foto : "";
+      
+      if (values.foto instanceof File) {
         const formData = new FormData();
         formData.append("file", values.foto);
         
@@ -100,7 +105,7 @@ export function FormTambahBarang({ onSuccess }: FormTambahBarangProps) {
         imageUrl = uploadData.url;
       }
       
-      // Then create the barang with the image URL
+      // Then update the barang
       const barangData = {
         nama: values.nama,
         kategori_id: parseInt(values.kategori_id),
@@ -108,11 +113,11 @@ export function FormTambahBarang({ onSuccess }: FormTambahBarangProps) {
         stok: parseInt(values.stok),
         deskripsi: values.deskripsi,
         harga_pinalti_per_jam: parseInt(values.harga_pinalti_per_jam),
-        foto: imageUrl || undefined,
+        foto: imageUrl,
       };
       
-      const response = await fetch("/api/barang", {
-        method: "POST",
+      const response = await fetch(`/api/barang/${barang.id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
@@ -121,18 +126,23 @@ export function FormTambahBarang({ onSuccess }: FormTambahBarangProps) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create item");
+        throw new Error(errorData.error || "Failed to update item");
       }
 
-      form.reset();
       onSuccess();
     } catch (err) {
-      console.error("Error creating item:", err);
-      toast.error((err as Error).message || "Failed to create item");
+      console.error("Error updating item:", err);
+      toast.error((err as Error).message || "Failed to update item");
     } finally {
       setIsSubmitting(false);
     }
   };
+  useEffect(() => {
+    // Set initial preview only on client side
+    if (barang.foto) {
+      setPreviewImage(barang.foto);
+    }
+  }, [barang.foto]);
 
   return (
     <Form {...form}>
@@ -235,6 +245,22 @@ export function FormTambahBarang({ onSuccess }: FormTambahBarangProps) {
             </FormItem>
           )}
         />
+        
+        {/* Current Image Preview */}
+        {previewImage && (
+          <div className="space-y-2">
+            <FormLabel>Foto Saat Ini</FormLabel>
+            <div className="relative h-40 w-full border rounded">
+              <Image 
+                src={previewImage}
+                alt="Barang preview"
+                fill
+                className="object-contain"
+              />
+            </div>
+          </div>
+        )}
+        
         <FormField
           control={form.control}
           name="foto"
@@ -242,16 +268,18 @@ export function FormTambahBarang({ onSuccess }: FormTambahBarangProps) {
             <FormItem>
               <FormLabel>Foto</FormLabel>
               <FormControl>
-                <Input 
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      field.onChange(file);
-                    }
-                  }}
-                />
+              <Input 
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                        // Create object URL only on client side
+                        setPreviewImage(URL.createObjectURL(file));
+                        field.onChange(file);
+                        }
+                    }}
+                    />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -269,7 +297,7 @@ export function FormTambahBarang({ onSuccess }: FormTambahBarangProps) {
                 Menyimpan...
               </>
             ) : (
-              "Simpan"
+              "Simpan Perubahan"
             )}
           </Button>
         </div>

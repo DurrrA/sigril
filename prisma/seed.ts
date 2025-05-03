@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { faker } from '@faker-js/faker'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
@@ -19,14 +20,17 @@ async function main() {
     kategoriNames.map(nama => prisma.kategori.create({ data: { nama } }))
   )
 
+  const adminPassword = "admin123"
+  const hashedPassword = await bcrypt.hash(adminPassword, 10)
+  
   const adminUser = await prisma.user.create({
     data: {
-      username: faker.internet.userName(),
-      password: faker.internet.password(),
-      email:    faker.internet.email(),
-      role_id:  adminRole.id,
-      is_blacklisted: faker.datatype.boolean(),
-      createdAt: faker.date.past(),
+      username: "admin",
+      password: hashedPassword,
+      email: "admin@kenamplan.com",
+      role_id: adminRole.id,
+      is_blacklisted: false,
+      createdAt: new Date(),
     },
   })
   console.log(`Admin user created: ${adminUser.username}`)

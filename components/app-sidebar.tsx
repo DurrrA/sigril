@@ -84,7 +84,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="#">
-                <Image src="/logo_kenamplan.png" alt="Logo Kenam Plan" className="h-7 w-7"></Image>
+              <Image 
+                src="/logo_kenamplan.png" 
+                alt="Kenamplan Logo"
+                width={150}  // Set appropriate size
+                height={50}  // Set appropriate size
+                />
                 <span className="text-xl font-semibold text-[#3528ab]">Kenam Plan</span>
               </a>
             </SidebarMenuButton>

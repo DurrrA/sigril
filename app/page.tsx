@@ -1,4 +1,3 @@
-import NewsCard from "../components/ui/NewsCard";
 import Image from "next/image";
 import React from "react";
 import ProductCarousel from "../components/ui/ProductCarousel";
@@ -117,8 +116,6 @@ export default function Home() {
   const grillProducts = allProducts.filter((product) => product.category === "Alat Grill");
   const picnicProducts = allProducts.filter((product) => product.category === "Perlengkapan Piknik");
   const campingProducts = allProducts.filter((product) => product.category === "Camping");
-  const otherProducts = allProducts.filter((product) => product.category === "Lain-lain");
-
   const reviews = [
     {
       name: "John Doe",
