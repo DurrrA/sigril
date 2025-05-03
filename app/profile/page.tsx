@@ -7,7 +7,7 @@ import { z } from "zod"
 import { format } from "date-fns"
 import { CalendarIcon, Loader2, User, Info } from "lucide-react"
 
-import { Button } from "@/app/components/button"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
-import { User as UserType } from "@/interfaces/user.interfaces"
+import type { User as UserType } from "@/interfaces/user.interfaces"
 
 const formSchema = z.object({
   username: z.string().min(3, {
@@ -61,16 +61,16 @@ export default function ProfilePage() {
       try {
         setIsLoading(true)
         const response = await fetch("/api/me")
-        
+
         if (!response.ok) {
           throw new Error("Failed to fetch user data")
         }
-        
+
         const data = await response.json()
         const user = data.data.user
-        
+
         setUserData(user)
-        
+
         // Set form values from API data
         form.reset({
           username: user.username || "",
@@ -80,7 +80,6 @@ export default function ProfilePage() {
           dateOfBirth: user.date_of_birth ? new Date(user.date_of_birth) : undefined,
           avatar: user.avatar || "",
         })
-        
       } catch (err) {
         setError("Failed to load profile data")
         console.error("Error fetching user data:", err)
@@ -98,32 +97,32 @@ export default function ProfilePage() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsSaving(true)
-      
+
       // Create FormData for file upload
-      const formData = new FormData();
-      formData.append("username", values.username);
-      formData.append("phone", values.phone);
-      formData.append("address", values.address);
-      formData.append("fullName", values.fullName);
+      const formData = new FormData()
+      formData.append("username", values.username)
+      formData.append("phone", values.phone)
+      formData.append("address", values.address)
+      formData.append("fullName", values.fullName)
       if (values.dateOfBirth) {
-        formData.append("dateOfBirth", values.dateOfBirth.toISOString());
+        formData.append("dateOfBirth", values.dateOfBirth.toISOString())
       }
       if (values.avatar && values.avatar instanceof File) {
-        formData.append("avatar", values.avatar);
+        formData.append("avatar", values.avatar)
       }
-      
+
       const response = await fetch("/api/me", {
         method: "PUT",
         body: formData,
         // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
       })
-      
+
       if (!response.ok) {
         throw new Error("Failed to update profile")
       }
-      
+
       const updatedUser = await response.json()
-      
+
       // Update the local user data with the response
       if (userData) {
         setUserData({
@@ -136,11 +135,10 @@ export default function ProfilePage() {
           avatar: updatedUser.avatar,
         })
       }
-  
+
       toast("Profile Updated", {
         description: "Your profile has been updated successfully.",
       })
-      
     } catch (err) {
       console.error("Error updating profile:", err)
       toast("Error", {
@@ -153,16 +151,19 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-[70vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading profile...</p>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="container max-w-4xl py-10">
-        <Alert variant="destructive">
+      <div className="container flex justify-center items-center min-h-screen py-10">
+        <Alert variant="destructive" className="max-w-md">
           <Info className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
@@ -172,72 +173,70 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container max-w-4xl py-10">
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile Settings</CardTitle>
+    <div className="container flex justify-center items-center min-h-screen py-10">
+      <Card className="w-full max-w-3xl shadow-lg">
+        <CardHeader className="text-center pb-6 border-b">
+          <CardTitle className="text-2xl font-bold">Profile Settings</CardTitle>
           <CardDescription>Update your personal information and profile settings</CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-6">
-              <div className="flex flex-col items-center space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
-              <Avatar className="h-24 w-24">
-                <AvatarImage 
-                  src={
-                    userData?.avatar && typeof userData.avatar === 'string' 
-                      ? userData.avatar 
-                      : form.watch('avatar') instanceof File 
-                        ? URL.createObjectURL(form.watch('avatar') as File) 
-                        : ''
-                  } 
-                  alt={userData?.username || "User"} 
-                />
-                <AvatarFallback className="text-2xl">
-                  <User className="h-12 w-12" />
-                </AvatarFallback>
-              </Avatar>
-                <div className="flex flex-col space-y-2">
+              <div className="flex flex-col items-center justify-center space-y-4 pb-6 border-b">
+                <Avatar className="h-28 w-28 border-2 border-primary/20">
+                  <AvatarImage
+                    src={
+                      userData?.avatar && typeof userData.avatar === "string"
+                        ? userData.avatar
+                        : form.watch("avatar") instanceof File
+                          ? URL.createObjectURL(form.watch("avatar") as File)
+                          : ""
+                    }
+                    alt={userData?.username || "User"}
+                  />
+                  <AvatarFallback className="text-2xl bg-primary/10">
+                    <User className="h-12 w-12" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col space-y-1 items-center">
                   <h3 className="text-lg font-medium">{userData?.email}</h3>
                   <p className="text-sm text-muted-foreground">
                     Member since {new Date(userData?.createdAt || "").toLocaleDateString()}
                   </p>
-                  <FormField
-                    control={form.control}
-                    name="avatar"
-                    render={({ field: { value, onChange, ...fieldProps } }) => (
-                      <FormItem>
-                        <FormLabel>Profile Picture</FormLabel>
-                        <FormControl>
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              className="w-full sm:w-80"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  // Store the file in the form
-                                  onChange(file);
-                                }
-                              }}
-                              {...fieldProps}
-                            />
-                            {value && typeof value === 'object' && (
-                              <div className="text-sm text-muted-foreground">
-                                {(value as File).name}
-                              </div>
-                            )}
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
+                <FormField
+                  control={form.control}
+                  name="avatar"
+                  render={({ field: { value, onChange, ...fieldProps } }) => (
+                    <FormItem className="w-full max-w-sm">
+                      <FormLabel className="text-center block">Profile Picture</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            className="w-full"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                // Store the file in the form
+                                onChange(file)
+                              }
+                            }}
+                            {...fieldProps}
+                          />
+                          {value && typeof value === "object" && (
+                            <div className="text-sm text-muted-foreground">{(value as File).name}</div>
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <div className="grid gap-6 pt-4 md:grid-cols-2">
+              <div className="grid gap-6 pt-6 md:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="username"
@@ -331,11 +330,15 @@ export default function ProfilePage() {
                 />
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end space-x-2 border-t px-6 py-4">
+            <CardFooter className="flex justify-end space-x-2 border-t px-6 py-4 bg-muted/10">
               <Button variant="outline" onClick={() => form.reset()} disabled={isSaving}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button
+                type="submit"
+                disabled={isSaving}
+                className="px-6 bg-[#3528AB] text-white disabled:bg-[#3528AB]/70"
+              >
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
               </Button>
