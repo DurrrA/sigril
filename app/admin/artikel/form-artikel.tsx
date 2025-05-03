@@ -10,6 +10,7 @@ import { CalendarIcon } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
+import { useEffect } from "react"
 
 const formSchema = z.object({
   judul: z.string().min(1, { message: "Judul wajib diisi" }),
@@ -24,20 +25,41 @@ const formSchema = z.object({
   }),
 })
 
-export function FormBuatArtikel() {
+type FormBuatArtikelProps = {
+  defaultValues?: {
+    judul: string;
+    tags?: string;
+    konten: string;
+    publish_date: Date;
+    foto?: File | null;
+  };
+  onSubmitSuccess?: (data: any) => void;
+}
+
+export function FormBuatArtikel({ defaultValues, onSubmitSuccess }: FormBuatArtikelProps) {
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      judul: "",
-      tags: "",
-      konten: "",
-      publish_date: new Date(),
+      judul: defaultValues?.judul ?? "",
+      tags: defaultValues?.tags ?? "",
+      konten: defaultValues?.konten ?? "",
+      publish_date: defaultValues?.publish_date ?? new Date(),
       foto: undefined,
     },
   })
 
-  const onSubmit = (data: unknown) => {
+  useEffect(() => {
+    if (defaultValues) {
+      form.reset({
+        ...defaultValues,
+        foto: undefined, // Reset file input saat edit
+      })
+    }
+  }, [defaultValues, form])
+
+  const onSubmit = (data: any) => {
     console.log("Submitted:", data)
+    onSubmitSuccess?.(data)
   }
 
   return (
@@ -107,17 +129,16 @@ export function FormBuatArtikel() {
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {field.value instanceof Date ? format(field.value, "PPP") : <span>Pilih tanggal</span>}
-
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={field.value as Date | undefined}
-                  onSelect={field.onChange}
-                  disabled={(date) => date > new Date()}
-                />
+                  <Calendar
+                    mode="single"
+                    selected={field.value as Date | undefined}
+                    onSelect={field.onChange}
+                    disabled={(date) => date > new Date()}
+                  />
                 </PopoverContent>
               </Popover>
               <FormMessage />
@@ -145,7 +166,7 @@ export function FormBuatArtikel() {
             Simpan
           </Button>
         </div>
-        
+
       </form>
     </Form>
   )

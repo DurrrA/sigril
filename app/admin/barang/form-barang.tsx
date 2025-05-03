@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useEffect } from "react"
 
 const formSchema = z.object({
   nama: z.string().min(1, { message: "Nama barang wajib diisi" }),
@@ -23,7 +24,18 @@ const formSchema = z.object({
   foto: z.any(),
 })
 
-export function FormTambahBarang() {
+type FormBarangProps = {
+  defaultValues?: {
+    nama: string;
+    kategori: string;
+    harga: string;
+    stok: string;
+    penalti: string;
+    foto?: any;
+  };
+}
+
+export function FormTambahBarang({ defaultValues }: FormBarangProps) {
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -33,11 +45,23 @@ export function FormTambahBarang() {
       stok: "",
       penalti: "",
       foto: undefined,
+      ...defaultValues, // <-- kalau ada defaultValues, override
     },
   })
 
-  const onSubmit = (values: unknown) => {
-    console.log("Barang baru:", values)
+  // Supaya kalau defaultValues berubah (pas klik edit barang baru), form ikut update
+  useEffect(() => {
+    if (defaultValues) {
+      form.reset(defaultValues);
+    }
+  }, [defaultValues, form]);
+
+  const onSubmit = (values: any) => {
+    if (defaultValues) {
+      console.log("Edit barang:", values)
+    } else {
+      console.log("Barang baru:", values)
+    }
   }
 
   return (
@@ -79,6 +103,7 @@ export function FormTambahBarang() {
                 <FormControl>
                   <Input placeholder="Rp" {...field} />
                 </FormControl>
+                <FormMessage />
               </FormItem>
             )}
           />
@@ -91,6 +116,7 @@ export function FormTambahBarang() {
                 <FormControl>
                   <Input type="number" {...field} />
                 </FormControl>
+                <FormMessage />
               </FormItem>
             )}
           />
@@ -104,6 +130,7 @@ export function FormTambahBarang() {
               <FormControl>
                 <Input placeholder="Rp" {...field} />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -116,12 +143,13 @@ export function FormTambahBarang() {
               <FormControl>
                 <Input type="file" onChange={(e) => field.onChange(e.target.files?.[0])} />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
         <div className="pt-2 flex justify-end gap-2">
           <Button type="submit" className="bg-[#3528AB] hover:bg-[#2e2397] text-white">
-            Simpan
+            {defaultValues ? "Update" : "Simpan"}
           </Button>
         </div>
       </form>
