@@ -1,42 +1,23 @@
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provide"
-import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+"use client";
 
-import { cn } from "@/lib/utils";
+import "../globals.css";
+import { SessionProvider } from "next-auth/react";
+import { Poppins } from "next/font/google";
 
-const geistSans = Geist({
+const poppins = Poppins({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
-})
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-})
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins",
+});
 
-export const metadata: Metadata = {
-  title: "Sigril",
-  description: "Sistem Informasi...",
-}
-
-export default function RootLayout({
+export default function AdminLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={cn(`${geistSans.variable} ${geistMono.variable} antialiased`)}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
-      </body>
+    <html lang="en" className={poppins.variable}>
+      <body className="min-h-screen bg-white flex flex-col">{children}</body>
     </html>
   );
 }

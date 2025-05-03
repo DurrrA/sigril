@@ -51,7 +51,7 @@ export async function POST(request: Request) {
         id_tags,
         publishAt: new Date(publishAt),
         is_published: is_published ?? false,
-      },
+      },   
     });
 
     return NextResponse.json(

@@ -1,4 +1,3 @@
-// BLOM DINAMIS -DURRR
 "use client";
 
 import React, { useState } from "react";
@@ -16,21 +15,21 @@ const Keranjang = () => {
   const [items, setItems] = useState<KeranjangItemData[]>([
     {
       id: "1",
-      image: "dummy1.png",
+      image: "",
       name: "Big Family Packages",
       price: 25000,
       initialQuantity: 2,
     },
     {
       id: "2",
-      image: "dummy2.png",
+      image: "",
       name: "Grill Pan Mini",
       price: 175000,
       initialQuantity: 1,
     },
     {
       id: "3",
-      image: "dummy3.png",
+      image: "",
       name: "Tenda Camping Nyaman",
       price: 300000,
       initialQuantity: 1,
@@ -57,9 +56,9 @@ const Keranjang = () => {
 
   const handleSelectAll = () => {
     if (selectedItems.length === items.length) {
-      setSelectedItems([]); // Unselect all
+      setSelectedItems([]); 
     } else {
-      setSelectedItems(items.map((item) => item.id)); // Select all
+      setSelectedItems(items.map((item) => item.id));
     }
   };
 
@@ -67,7 +66,7 @@ const Keranjang = () => {
     setItems((prevItems) =>
       prevItems.filter((item) => !selectedItems.includes(item.id))
     );
-    setSelectedItems([]); // Reset selected items
+    setSelectedItems([]); 
   };
 
   const totalPayment = items

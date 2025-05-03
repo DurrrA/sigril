@@ -119,6 +119,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <main className="flex-grow">
+        {/* Header */}
         <div className="relative w-full h-[calc(100vw*9/16)] -mt-10">
           <Image
             src={normalizeImage('head.png')}
@@ -129,7 +130,7 @@ export default function Home() {
           />
         </div>
 
-
+        {/* Intro */}
         <div>
           <h1 className="text-4xl font-bold text-center mt-20 mx-20">
             🌿 KENAM.PLAN – SEWA ALAT GRILL, PIKNIK & CAMPING 🌿
@@ -142,7 +143,7 @@ export default function Home() {
           </p>
         </div>
 
-
+        {/* Artikel Terbaru */}
         <div>
           <h2 className="text-4xl font-bold text-center mt-30">PENGUMUMAN</h2>
           <p className="text-center text-base text-gray-600 mt-4 mb-6 mx-10">
@@ -159,7 +160,7 @@ export default function Home() {
           </div>
         </div>
 
-  
+        {/* Produk */}
         {categories.map((cat) => (
           <div key={cat.id} className="mt-10 px-6 mx-20">
             <ProductCarousel
@@ -177,12 +178,12 @@ export default function Home() {
           </div>
         ))}
 
-
+        {/* Pembatas */}
         <div className="mt-20 mb-20">
           <div className="border-t border-gray-200 w-3/4 mx-auto" />
         </div>
 
-
+        {/* Review Pelanggan */}
         <div>
           <h2 className="text-4xl font-bold text-center mt-20 mb-8">Review Pelanggan</h2>
           <ReviewCarousel
@@ -195,7 +196,7 @@ export default function Home() {
         </div>
       </main>
 
-
+      {/* Tombol Sebaran Pelanggan */}
       <div className="py-10">
         <button className="bg-[#3528AB] text-white px-6 py-2 rounded-full hover:bg-white hover:text-[#3528AB] transition duration-300 block mx-auto">
           Sebaran Pelanggan
