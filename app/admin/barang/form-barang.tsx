@@ -15,18 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2 } from "lucide-react"
-import { toast } from "sonner"
-
-interface Kategori {
-  id: number;
-  nama: string;
-}
-
-interface FormTambahBarangProps {
-  onSuccess: () => void;
-}
+import { useEffect } from "react"
 
 const formSchema = z.object({
   nama: z.string().min(1, { message: "Nama barang wajib diisi" }),
@@ -38,11 +27,18 @@ const formSchema = z.object({
   foto: z.instanceof(File).optional(),
 })
 
-export function FormTambahBarang({ onSuccess }: FormTambahBarangProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [kategoriList, setKategoriList] = useState<Kategori[]>([]);
-  const [loadingKategori, setLoadingKategori] = useState(true);
-  
+type FormBarangProps = {
+  defaultValues?: {
+    nama: string;
+    kategori: string;
+    harga: string;
+    stok: string;
+    penalti: string;
+    foto?: any;
+  };
+}
+
+export function FormTambahBarang({ defaultValues }: FormBarangProps) {
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -53,86 +49,24 @@ export function FormTambahBarang({ onSuccess }: FormTambahBarangProps) {
       deskripsi: "",
       harga_pinalti_per_jam: "",
       foto: undefined,
+      ...defaultValues, // <-- kalau ada defaultValues, override
     },
   })
 
-  // Fetch categories
+  // Supaya kalau defaultValues berubah (pas klik edit barang baru), form ikut update
   useEffect(() => {
-    const fetchKategori = async () => {
-      try {
-        const response = await fetch('/api/kategori');
-        if (!response.ok) {
-          throw new Error('Failed to fetch categories');
-        }
-        const data = await response.json();
-        setKategoriList(data.data || []);
-      } catch (err) {
-        console.error('Error fetching categories:', err);
-        toast.error('Failed to load categories');
-      } finally {
-        setLoadingKategori(false);
-      }
-    };
-
-    fetchKategori();
-  }, []);
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    try {
-      setIsSubmitting(true);
-      
-      // Handle file upload first if there's an image
-      let imageUrl = "";
-      if (values.foto) {
-        const formData = new FormData();
-        formData.append("file", values.foto);
-        
-        const uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-        
-        if (!uploadResponse.ok) {
-          throw new Error("Failed to upload image");
-        }
-        
-        const uploadData = await uploadResponse.json();
-        imageUrl = uploadData.url;
-      }
-      
-      // Then create the barang with the image URL
-      const barangData = {
-        nama: values.nama,
-        kategori_id: parseInt(values.kategori_id),
-        harga: parseInt(values.harga),
-        stok: parseInt(values.stok),
-        deskripsi: values.deskripsi,
-        harga_pinalti_per_jam: parseInt(values.harga_pinalti_per_jam),
-        foto: imageUrl || undefined,
-      };
-      
-      const response = await fetch("/api/barang", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(barangData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create item");
-      }
-
-      form.reset();
-      onSuccess();
-    } catch (err) {
-      console.error("Error creating item:", err);
-      toast.error((err as Error).message || "Failed to create item");
-    } finally {
-      setIsSubmitting(false);
+    if (defaultValues) {
+      form.reset(defaultValues);
     }
-  };
+  }, [defaultValues, form]);
+
+  const onSubmit = (values: any) => {
+    if (defaultValues) {
+      console.log("Edit barang:", values)
+    } else {
+      console.log("Barang baru:", values)
+    }
+  }
 
   return (
     <Form {...form}>
@@ -258,19 +192,8 @@ export function FormTambahBarang({ onSuccess }: FormTambahBarangProps) {
           )}
         />
         <div className="pt-2 flex justify-end gap-2">
-          <Button 
-            type="submit" 
-            className="bg-[#3528AB] hover:bg-[#2e2397] text-white"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
-            ) : (
-              "Simpan"
-            )}
+          <Button type="submit" className="bg-[#3528AB] hover:bg-[#2e2397] text-white">
+            {defaultValues ? "Update" : "Simpan"}
           </Button>
         </div>
       </form>

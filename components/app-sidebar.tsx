@@ -2,7 +2,9 @@
 
 import * as React from "react"
 import {
-  ClipboardListIcon,
+  CalendarPlusIcon,
+  CalendarCheckIcon,
+  HistoryIcon,
   LayoutDashboardIcon,
   NewspaperIcon,
   PackageIcon,
@@ -21,7 +23,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import Image from "next/image"
 
 const data = {
   user: {
@@ -44,13 +45,18 @@ const data = {
     {
       title: "Penyewaan",
       url: "/admin/penyewaan",
-      icon: ClipboardListIcon,
+      icon: CalendarPlusIcon,
     },
-    /*{
-      title: "Laporan",
-      url: "/admin/laporan",
-      icon: FolderIcon,
-    },*/
+    {
+      title: "Pengembalian",
+      url: "/admin/pengembalian",
+      icon: CalendarCheckIcon,
+    },
+    {
+      title: "Riwayat",
+      url: "/admin/riwayat",
+      icon: HistoryIcon,
+    },
     {
       title: "Artikel",
       url: "/admin/artikel",
@@ -84,12 +90,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="#">
-              <Image 
-                src="/logo_kenamplan.png" 
-                alt="Kenamplan Logo"
-                width={150}  // Set appropriate size
-                height={50}  // Set appropriate size
-                />
+                <img src="/logo_kenamplan.png" alt="Logo Kenam Plan" className="h-7 w-7"></img>
                 <span className="text-xl font-semibold text-[#3528ab]">Kenam Plan</span>
               </a>
             </SidebarMenuButton>
@@ -101,11 +102,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           Main Menu
         </div>
         <NavMain items={data.navMain} />
-        
-        <div className="px-2 pt-2 text-xs font-semibold text-muted-foreground tracking-wide">
-          Other
-        </div>
-        <NavMain items={data.NavSecondary} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
