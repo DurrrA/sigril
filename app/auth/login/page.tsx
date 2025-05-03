@@ -23,13 +23,13 @@ const AuthPage = () => {
   const [signUpLoading, setSignUpLoading] = useState(false);
   const [signUpError, setSignUpError] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
-
+  const modeParam = searchParams?.get('mode');
+  const mode = (modeParam === 'register' ? 'register' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // State for sign-up
   const [formData, setFormData] = useState<SignUpData>({
     name: "",
     email: "",
@@ -38,12 +38,12 @@ const AuthPage = () => {
 
   // Update form mode when URL changes
   useEffect(() => {
-    if (searchParams?.get('mode') === 'register') {
+    if (mode === 'register') {
       setIsLogin(false);
     } else {
       setIsLogin(true);
     }
-  }, [searchParams]);
+  }, [mode]);
 
   // Redirect if already logged in
   useEffect(() => {
