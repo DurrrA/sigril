@@ -1,6 +1,6 @@
 "use client"
 
-import { PencilIcon, TrashIcon, PlusIcon } from "lucide-react";
+import { PencilIcon, TrashIcon, PlusIcon} from "lucide-react";
 import Image from "next/image"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -17,6 +17,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { FormTambahBarang } from "@/app/admin/barang/form-barang"
+import { FormEditBarang } from "@/app/admin/barang/form-edit-barang"
 import { SiteHeader } from "@/components/site-header"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -29,7 +31,6 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { FormTambahBarang } from "@/app/admin/barang/form-barang";
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from "@/components/ui/pagination";
 
 // Define interfaces for our data structures

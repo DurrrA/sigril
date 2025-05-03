@@ -25,7 +25,11 @@ export async function GET(
       return NextResponse.json({ message: "Artikel tidak ditemukan" }, { status: 404 });
     }
 
-    return NextResponse.json(artikel);
+    return NextResponse.json({
+      message: "Artikel fetched successfully",
+      data: artikel,
+    }, { status: 200
+    });
   } catch (error) {
     console.error("Error fetching artikel:", error);
     return NextResponse.json({ error: "Gagal mengambil data artikel" }, { status: 500 });
@@ -66,7 +70,10 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json(artikel);
+    return NextResponse.json({
+      message: "Artikel berhasil diperbarui",
+      data: artikel,
+    });
   } catch (error) {
     console.error("Error updating artikel:", error);
     return NextResponse.json({ error: "Gagal update artikel" }, { status: 500 });
@@ -100,7 +107,9 @@ export async function DELETE(
       },
     });
 
-    return NextResponse.json({ message: "Artikel berhasil dihapus" });
+    return NextResponse.json({ 
+      message: "Artikel berhasil dihapus",
+    }, { status: 200 });
   } catch (error) {
     console.error("Error deleting artikel:", error);
     return NextResponse.json({ error: "Gagal menghapus artikel" }, { status: 500 });

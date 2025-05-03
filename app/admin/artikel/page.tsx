@@ -1,11 +1,10 @@
 "use client"
 
-import { PencilIcon, TrashIcon, PlusIcon } from "lucide-react";
+import { PencilIcon, TrashIcon, PlusIcon  } from "lucide-react";
 import Image from "next/image"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   AlertDialog,
-  AlertDialogTrigger,
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -13,6 +12,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
   AlertDialogDescription,
+  AlertDialogTrigger
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"

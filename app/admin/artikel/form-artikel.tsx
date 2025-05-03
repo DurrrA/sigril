@@ -1,9 +1,7 @@
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useState, useEffect } from "react"
-import { format } from "date-fns"
-import { CalendarIcon } from "lucide-react"
 
 // Import UI components
 import { Input } from "@/components/ui/input"
@@ -22,13 +20,22 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { format } from "date-fns"
+import { CalendarIcon, Loader2 } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
+import { Select, SelectTrigger, SelectContent, SelectValue, SelectItem } from "@/components/ui/select"
+
+// Define tag interface
+interface Tag {
+  id: number;
+  nama: string;
+}
 
 // Define our form schema
 const formSchema = z.object({
   judul: z.string().min(1, { message: "Judul wajib diisi" }),
-  tags: z.string().optional(),
+  id_tags: z.string().optional(),
   konten: z.string().min(1, { message: "Konten wajib diisi" }),
   publish_date: z.date({ required_error: "Tanggal wajib diisi" }),
 })
@@ -54,23 +61,49 @@ export function FormBuatArtikel({
   // State for file upload (handled separately from the form)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   
+  // Mock loading state and tags data (these need to be defined or fetched from somewhere)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [tags, setTags] = useState<Tag[]>([])
+
   // Setup the form
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       judul: defaultValues?.judul || "",
-      tags: defaultValues?.tags || "",
+      id_tags: defaultValues?.id_tags || "",
       konten: defaultValues?.konten || "",
       publish_date: defaultValues?.publish_date || new Date(),
     },
   })
+
+  // Fetch tags (mock implementation)
+  useEffect(() => {
+    const fetchTags = async () => {
+      setIsLoading(true)
+      try {
+        // Replace with actual API call
+        const mockTags = [
+          { id: 1, nama: "Technology" },
+          { id: 2, nama: "Health" },
+          { id: 3, nama: "Education" }
+        ]
+        setTags(mockTags)
+      } catch (error) {
+        console.error("Error fetching tags:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchTags()
+  }, [])
 
   // Reset form when defaultValues change
   useEffect(() => {
     if (defaultValues) {
       form.reset({
         judul: defaultValues.judul || "",
-        tags: defaultValues.tags || "",
+        id_tags: defaultValues.id_tags || "",
         konten: defaultValues.konten || "",
         publish_date: defaultValues.publish_date || new Date(),
       })
@@ -80,6 +113,7 @@ export function FormBuatArtikel({
 
   // Form submission handler
   const onSubmit = (data: FormData) => {
+    setIsSubmitting(true)
     // Combine form data with the file
     const completeData: CompleteFormData = {
       ...data,
@@ -88,6 +122,7 @@ export function FormBuatArtikel({
     
     console.log("Submitted:", completeData)
     onSubmitSuccess?.(completeData)
+    setIsSubmitting(false)
   }
 
   // Handle file change
@@ -117,13 +152,34 @@ export function FormBuatArtikel({
         {/* Tags */}
         <FormField
           control={form.control}
-          name="tags"
+          name="id_tags"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Tags</FormLabel>
-              <FormControl>
-                <Input placeholder="Pisahkan dengan koma" {...field} />
-              </FormControl>
+              <FormLabel>Tag</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih Tag" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {isLoading ? (
+                    <div className="flex items-center justify-center py-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="ml-2">Loading tags...</span>
+                    </div>
+                  ) : (
+                    tags.map((tag) => (
+                      <SelectItem key={tag.id} value={tag.id.toString()}>
+                        {tag.nama}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -192,8 +248,15 @@ export function FormBuatArtikel({
         </div>
 
         <div className="pt-2 flex justify-end gap-2">
-          <Button type="submit" className="bg-[#3528AB] text-white hover:bg-[#2e2397]">
-            Simpan
+          <Button 
+            type="submit" 
+            className="bg-[#3528AB] text-white hover:bg-[#2e2397]"
+            disabled={isSubmitting}
+          >
+            {isSubmitting && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            {isSubmitting ? "Menyimpan..." : "Simpan"}
           </Button>
         </div>
       </form>
