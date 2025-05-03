@@ -18,14 +18,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <SessionProvider>
-      <html lang="en" className={poppins.variable}>
-      <body className="min-h-screen bg-white flex flex-col">
-        <Navbar />
-        <main className="flex-grow">{children}</main>
-        <Footer />
+    <html lang="en">
+      <body className={`${poppins.variable} font-sans`}>
+        <SessionProvider>
+          <Navbar />
+          <main className="min-h-screen">
+            {children}
+          </main>
+          <Footer />
+        </SessionProvider>
       </body>
     </html>
-    </SessionProvider>
   );
 }

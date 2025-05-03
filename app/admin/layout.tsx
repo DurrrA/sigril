@@ -1,3 +1,7 @@
+"use client";
+
+import "../globals.css";
+import { SessionProvider } from "next-auth/react";
 import { Poppins } from "next/font/google";
 
 const poppins = Poppins({
@@ -6,17 +10,11 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
-export const metadata = {
-    title: "Admin Dashboard",
-    description: "Admin page only",
-  };
-  
-
 export default function AdminLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="en" className={poppins.variable}>
       <body className="min-h-screen bg-white flex flex-col">{children}</body>
