@@ -1,6 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useEffect, useState } from "react"
 import {
   Form,
   FormControl,
@@ -12,24 +15,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Barang, kategori } from "@/interfaces/barang.interfaces"
 import Image from "next/image"
-import { Barang } from "@/interfaces/barang.interfaces"
-
-interface Kategori {
-  id: number;
-  nama: string;
-}
-
-interface FormEditBarangProps {
-  barang: Barang;
-  onSuccess: () => void;
-}
 
 const formSchema = z.object({
   nama: z.string().min(1, { message: "Nama barang wajib diisi" }),
@@ -38,16 +28,31 @@ const formSchema = z.object({
   stok: z.string().min(1, { message: "Stok wajib diisi" }),
   deskripsi: z.string().min(1, { message: "Deskripsi wajib diisi" }),
   harga_pinalti_per_jam: z.string().min(1, { message: "Harga penalti wajib diisi" }),
-  foto: z.union([z.instanceof(File), z.string()]).optional(),
 })
 
+type FormData = z.infer<typeof formSchema>
+
+interface FormEditBarangProps {
+  barang: Barang;
+  onSuccess: () => void;
+}
+
+// Helper function to safely handle image paths
+const getImagePath = (path: string | null | undefined): string => {
+  if (!path) return '/placeholder-image.png';
+  if (path.startsWith('/') || path.startsWith('http')) return path;
+  return `/${path}`;
+};
+
 export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(barang.foto);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [kategoriList, setKategoriList] = useState<Kategori[]>([]);
   const [loadingKategori, setLoadingKategori] = useState(true);
-  const [previewImage, setPreviewImage] = useState<string | null>(barang.foto || null);
+  const [kategoriList, setKategoriList] = useState<kategori[]>([]);
   
-  const form = useForm({
+  // Set up form with default values from barang
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       nama: barang.nama,
@@ -56,44 +61,44 @@ export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
       stok: barang.stok.toString(),
       deskripsi: barang.deskripsi,
       harga_pinalti_per_jam: barang.harga_pinalti_per_jam.toString(),
-      foto: barang.foto,
     },
-  })
+  });
 
   // Fetch categories
   useEffect(() => {
-    const fetchKategori = async () => {
-      try {
-        const response = await fetch('/api/kategori');
-        if (!response.ok) {
-          throw new Error('Failed to fetch categories');
-        }
-        const data = await response.json();
-        setKategoriList(data.data || []);
-      } catch (err) {
-        console.error('Error fetching categories:', err);
-        toast.error('Failed to load categories');
-      } finally {
-        setLoadingKategori(false);
-      }
-    };
-
     fetchKategori();
   }, []);
+  
+  const fetchKategori = async () => {
+    try {
+      const response = await fetch('/api/kategori');
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+      const data = await response.json();
+      setKategoriList(data.data || []);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      toast.error('Failed to load categories');
+    } finally {
+      setLoadingKategori(false);
+    }
+  };
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: FormData) => {
     try {
       setIsSubmitting(true);
       
       // Handle file upload first if there's a new image
-      let imageUrl = typeof values.foto === "string" ? values.foto : "";
+      let imagePath = barang.foto; // Keep existing image by default
       
-      if (values.foto instanceof File) {
+      if (selectedFile) {
         const formData = new FormData();
-        formData.append("file", values.foto);
+        formData.append("file", selectedFile);
         
         const uploadResponse = await fetch("/api/upload", {
           method: "POST",
+          credentials: "include",
           body: formData,
         });
         
@@ -102,10 +107,10 @@ export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
         }
         
         const uploadData = await uploadResponse.json();
-        imageUrl = uploadData.url;
+        imagePath = uploadData.url; // This will be a relative path like /uploads/image.jpg
       }
       
-      // Then update the barang
+      // Then update the barang 
       const barangData = {
         nama: values.nama,
         kategori_id: parseInt(values.kategori_id),
@@ -113,11 +118,12 @@ export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
         stok: parseInt(values.stok),
         deskripsi: values.deskripsi,
         harga_pinalti_per_jam: parseInt(values.harga_pinalti_per_jam),
-        foto: imageUrl,
+        foto: imagePath,
       };
       
       const response = await fetch(`/api/barang/${barang.id}`, {
         method: "PUT",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -137,12 +143,19 @@ export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
       setIsSubmitting(false);
     }
   };
-  useEffect(() => {
-    // Set initial preview only on client side
-    if (barang.foto) {
-      setPreviewImage(barang.foto);
+
+  // Handle file selection with preview
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewImage(objectUrl);
+      
+      // Clean up URL when component unmounts
+      return () => URL.revokeObjectURL(objectUrl);
     }
-  }, [barang.foto]);
+  };
 
   return (
     <Form {...form}>
@@ -160,6 +173,7 @@ export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
             </FormItem>
           )}
         />
+        
         <FormField
           control={form.control}
           name="kategori_id"
@@ -191,6 +205,7 @@ export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
             </FormItem>
           )}
         />
+        
         <FormField
           control={form.control}
           name="deskripsi"
@@ -204,6 +219,7 @@ export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
             </FormItem>
           )}
         />
+        
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -232,6 +248,7 @@ export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
             )}
           />
         </div>
+        
         <FormField
           control={form.control}
           name="harga_pinalti_per_jam"
@@ -246,45 +263,36 @@ export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
           )}
         />
         
-        {/* Current Image Preview */}
-        {previewImage && (
-          <div className="space-y-2">
-            <FormLabel>Foto Saat Ini</FormLabel>
-            <div className="relative h-40 w-full border rounded">
-              <Image 
-                src={previewImage}
-                alt="Barang preview"
-                fill
-                className="object-contain"
-              />
+        {/* Current image and file upload */}
+        <div className="space-y-4">
+          {previewImage && (
+            <div className="space-y-2">
+              <FormLabel>Foto Saat Ini</FormLabel>
+              <div className="relative h-40 w-full border rounded">
+                <Image 
+                  src={getImagePath(previewImage)}
+                  alt="Barang preview"
+                  fill
+                  className="object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/placeholder-image.png';
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        )}
-        
-        <FormField
-          control={form.control}
-          name="foto"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Foto</FormLabel>
-              <FormControl>
-              <Input 
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                        // Create object URL only on client side
-                        setPreviewImage(URL.createObjectURL(file));
-                        field.onChange(file);
-                        }
-                    }}
-                    />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
           )}
-        />
+          
+          <div className="space-y-2">
+            <FormLabel htmlFor="foto">Ganti Foto (opsional)</FormLabel>
+            <Input 
+              id="foto" 
+              type="file" 
+              accept="image/*"
+              onChange={handleFileSelect}
+            />
+          </div>
+        </div>
+        
         <div className="pt-2 flex justify-end gap-2">
           <Button 
             type="submit" 
@@ -297,11 +305,11 @@ export function FormEditBarang({ barang, onSuccess }: FormEditBarangProps) {
                 Menyimpan...
               </>
             ) : (
-              "Simpan Perubahan"
+              "Simpan"
             )}
           </Button>
         </div>
       </form>
     </Form>
-  )
+  );
 }

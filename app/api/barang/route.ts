@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     }
   try {
     const body = await request.json();
+    
     const validatedData = barangSchema.parse(body); 
     const foto = validatedData.foto || "image/file.svg"; // Set foto to null if not provided
     const newBarang = await prisma.barang.create({

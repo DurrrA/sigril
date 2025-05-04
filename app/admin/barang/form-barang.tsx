@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useState } from "react"
-
 import {
   Form,
   FormControl,
@@ -15,86 +14,169 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { kategori } from "@/interfaces/barang.interfaces"
+import Image from "next/image"
 
-// Define our form schema
 const formSchema = z.object({
   nama: z.string().min(1, { message: "Nama barang wajib diisi" }),
-  kategori: z.string(),
-  harga: z.string(),
-  stok: z.string(),
-  hargaPenalti: z.string(),
+  kategori_id: z.string().min(1, { message: "Kategori wajib dipilih" }),
+  harga: z.string().min(1, { message: "Harga wajib diisi" }),
+  stok: z.string().min(1, { message: "Stok wajib diisi" }),
+  deskripsi: z.string().min(1, { message: "Deskripsi wajib diisi" }),
+  harga_pinalti_per_jam: z.string().min(1, { message: "Harga penalti wajib diisi" }),
 })
 
-// Form data type based on schema
 type FormData = z.infer<typeof formSchema>
 
-// Complete data type including file
-interface CompleteFormData extends FormData {
-  foto: File | null
+interface FormTambahBarangProps {
+  kategoris?: kategori[];
+  onSuccess: () => void;
 }
 
-type FormBarangProps = {
-  defaultValues?: Partial<FormData> & { foto?: File | null }
-  onSubmitSuccess?: (data: CompleteFormData) => void
-}
-
-export function FormTambahBarang({ defaultValues, onSubmitSuccess }: FormBarangProps) {
-  // State for file upload (handled separately from the form)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+export function FormTambahBarang({ kategoris = [], onSuccess }: FormTambahBarangProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingKategori, setLoadingKategori] = useState(true);
+  const [kategoriList, setKategoriList] = useState<kategori[]>(kategoris);
   
+  // Set up form
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      nama: defaultValues?.nama || "",
-      kategori: defaultValues?.kategori || "",
-      harga: defaultValues?.harga || "",
-      stok: defaultValues?.stok || "",
-      hargaPenalti: defaultValues?.hargaPenalti || "",
+      nama: "",
+      kategori_id: "",
+      harga: "",
+      stok: "",
+      deskripsi: "",
+      harga_pinalti_per_jam: "",
     },
-  })
+  });
 
+  // Fetch categories if not provided
   useEffect(() => {
-    if (defaultValues?.foto) {
-      setSelectedFile(defaultValues.foto)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (defaultValues) {
-      form.reset({
-        nama: defaultValues.nama || "",
-        kategori: defaultValues.kategori || "",
-        harga: defaultValues.harga || "",
-        stok: defaultValues.stok || "",
-        hargaPenalti: defaultValues.hargaPenalti || "",
-      })
-
-      if (defaultValues.foto) {
-        setSelectedFile(defaultValues.foto)
-      } else {
-        setSelectedFile(null)
-      }
-    }
-  }, [defaultValues, form])
-
-  const onSubmit = (values: FormData) => {
-    const completeData: CompleteFormData = {
-      ...values,
-      foto: selectedFile
-    }
-    
-    if (defaultValues) {
-      console.log("Edit barang:", completeData)
+    if (kategoris.length > 0) {
+      setKategoriList(kategoris);
+      setLoadingKategori(false);
     } else {
-      console.log("Barang baru:", completeData)
+      fetchKategori();
     }
-    
-    onSubmitSuccess?.(completeData)
-  }
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null
-    setSelectedFile(file)
-  }
+  }, [kategoris]);
+  
+  const fetchKategori = async () => {
+    try {
+      const response = await fetch('/api/kategori');
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+      const data = await response.json();
+      setKategoriList(data.data || []);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      toast.error('Failed to load categories');
+    } finally {
+      setLoadingKategori(false);
+    }
+  };
+
+  const onSubmit = async (values: FormData) => {
+    try {
+      setIsSubmitting(true);
+      
+      // Handle file upload first if there's an image
+      let imagePath = "";
+      
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        
+        try {
+          const uploadResponse = await fetch("/api/upload", {
+            method: "POST",
+            credentials: 'include', // Include cookies for authentication
+            body: formData,
+          });
+          
+          if (uploadResponse.redirected) {
+            // If redirected to /forbidden or /login, handle it
+            window.location.href = uploadResponse.url;
+            return;
+          }
+          
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.error || "Failed to upload image");
+          }
+          
+          const uploadData = await uploadResponse.json();
+          imagePath = uploadData.url;
+        } catch (uploadError) {
+          console.error("Upload error:", uploadError);
+          toast.error(`Upload failed: ${uploadError instanceof Error ? uploadError.message : "Unknown error"}`);
+          throw new Error("Failed to upload image");
+        }
+      }
+      
+      // Then create the barang with the image URL
+      const barangData = {
+        nama: values.nama,
+        kategori_id: parseInt(values.kategori_id),
+        harga: parseInt(values.harga),
+        stok: parseInt(values.stok),
+        deskripsi: values.deskripsi,
+        harga_pinalti_per_jam: parseInt(values.harga_pinalti_per_jam),
+        foto: imagePath,
+      };
+      
+      const response = await fetch("/api/barang", {
+        method: "POST",
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(barangData),
+      });
+  
+      if (response.redirected) {
+        // If redirected to /forbidden or /login, handle it
+        window.location.href = response.url;
+        return;
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create item");
+      }
+  
+      form.reset();
+      setSelectedFile(null);
+      setPreviewImage(null);
+      onSuccess();
+    } catch (err) {
+      console.error("Error creating item:", err);
+      toast.error((err as Error).message || "Failed to create item");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle file selection with preview
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      // Create a preview URL (only in browser)
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewImage(objectUrl);
+      
+      // Clean up URL when component unmounts
+      return () => URL.revokeObjectURL(objectUrl);
+    }
+  };
 
   return (
     <Form {...form}>
@@ -112,19 +194,53 @@ export function FormTambahBarang({ defaultValues, onSubmitSuccess }: FormBarangP
             </FormItem>
           )}
         />
+        
         <FormField
           control={form.control}
-          name="kategori"
+          name="kategori_id"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Kategori</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih kategori" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {loadingKategori ? (
+                    <div className="flex items-center justify-center py-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="ml-2">Loading...</span>
+                    </div>
+                  ) : (
+                    kategoriList.map((kategori) => (
+                      <SelectItem key={kategori.id} value={kategori.id.toString()}>
+                        {kategori.nama}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="deskripsi"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Deskripsi</FormLabel>
               <FormControl>
-                <Input placeholder="Kategori" {...field} />
+                <Textarea placeholder="Deskripsi barang" rows={3} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+        
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -133,7 +249,7 @@ export function FormTambahBarang({ defaultValues, onSubmitSuccess }: FormBarangP
               <FormItem>
                 <FormLabel>Harga</FormLabel>
                 <FormControl>
-                  <Input placeholder="Rp" {...field} />
+                  <Input placeholder="Rp" type="number" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -153,37 +269,60 @@ export function FormTambahBarang({ defaultValues, onSubmitSuccess }: FormBarangP
             )}
           />
         </div>
+        
         <FormField
           control={form.control}
-          name="hargaPenalti"
+          name="harga_pinalti_per_jam"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Harga Penalti</FormLabel>
+              <FormLabel>Harga Penalti (per jam)</FormLabel>
               <FormControl>
-                <Input placeholder="Rp" {...field} />
+                <Input placeholder="Rp" type="number" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         
-        {/* Foto Upload - Handled separately from form validation */}
+        {/* File upload with preview */}
         <div className="space-y-2">
           <FormLabel htmlFor="foto">Foto</FormLabel>
           <Input 
-            id="foto"
+            id="foto" 
             type="file" 
-            onChange={handleFileChange}
-            accept="image/*" 
+            accept="image/*"
+            onChange={handleFileSelect}
           />
+          
+          {previewImage && (
+            <div className="mt-2 relative h-40 w-full border rounded">
+              <Image
+                src={previewImage}
+                alt="Preview"
+                fill
+                className="object-contain"
+              />
+            </div>
+          )}
         </div>
         
         <div className="pt-2 flex justify-end gap-2">
-          <Button type="submit" className="bg-[#3528AB] hover:bg-[#2e2397] text-white">
-            {defaultValues ? "Update" : "Simpan"}
+          <Button 
+            type="submit" 
+            className="bg-[#3528AB] hover:bg-[#2e2397] text-white"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Menyimpan...
+              </>
+            ) : (
+              "Simpan"
+            )}
           </Button>
         </div>
       </form>
     </Form>
-  )
+  );
 }
