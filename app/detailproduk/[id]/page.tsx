@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Barang } from "@/interfaces/barang.interfaces";
 import Image from "next/image";
 import ProfileCompletionCheck from '@/components/ui/ProfileCompletionCheck';
-
+// import { UserResponse, User } from "@/interfaces/user.interfaces";
 const DetailProduk = () => {
   const router = useRouter();
   const params = useParams();
@@ -15,7 +15,6 @@ const DetailProduk = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [, setKeranjang] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -49,23 +48,66 @@ const DetailProduk = () => {
     }
   };
 
+  const handleAddToCart = async () => {
+    if (product) {
+      try {
+        // Get the current user's ID (you'll need to implement this based on your auth system)
+        const userId = await getCurrentUserId();
+        
+        // Calculate subtotal
+        const subtotal = product.harga * quantity;
+        
+        // Send request to your existing API endpoint
+        const response = await fetch('/api/keranjang', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id_barang: parseInt(product.id), // Convert ID to number if needed
+            id_user: userId,
+            jumlah: quantity,
+            subtotal: subtotal,
+          }),
+        });
+  
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to add to cart');
+        }
+        
+        // Show success message
+        alert(`${quantity} unit produk "${product.nama}" berhasil ditambahkan ke keranjang!`);
+        
+        // Reset quantity after adding to cart
+        setQuantity(1);
+      } catch (error) {
+        console.error("Error adding to cart:", error);
+        alert("Gagal menambahkan produk ke keranjang. Silakan coba lagi.");
+      }
+    }
+  };
+  
+  // Helper function to get current user ID (implement based on your auth system)
+  const getCurrentUserId = async () => {
+    // Example implementation - replace with your actual authentication method
+    const response = await fetch('/api/me');
+    if (response.ok) {
+      const data = await response.json();
+      console.log(data.UserResponse.User.id);
+      return data.UserResponse.User.id;
+    }
+    throw new Error('Failed to get user information');
+  };
+  
+
   const handleDecrease = () => {
     if (quantity > 1) {
       setQuantity((prev) => prev - 1);
     }
   };
 
-  const handleAddToCart = () => {
-    if (product) {
-      setKeranjang((prevKeranjang) => {
-        if (!prevKeranjang.includes(product.id)) {
-          return [...prevKeranjang, product.id];
-        }
-        return prevKeranjang;
-      });
-      alert(`Produk "${product.nama}" berhasil ditambahkan ke keranjang!`);
-    }
-  };
+
 
   if (loading) {
     return (

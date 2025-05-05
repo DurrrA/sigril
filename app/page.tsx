@@ -119,7 +119,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <main className="flex-grow">
-        {/* Header */}
+        
         <div className="relative w-full h-[calc(100vw*9/16)] -mt-10">
           <Image
             src={normalizeImage('head.png')}
@@ -130,7 +130,7 @@ export default function Home() {
           />
         </div>
 
-        {/* Intro */}
+        
         <div>
           <h1 className="text-4xl font-bold text-center mt-20 mx-20">
             🌿 KENAM.PLAN – SEWA ALAT GRILL, PIKNIK & CAMPING 🌿
@@ -143,7 +143,7 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Artikel Terbaru */}
+        
         <div>
           <h2 className="text-4xl font-bold text-center mt-30">PENGUMUMAN</h2>
           <p className="text-center text-base text-gray-600 mt-4 mb-6 mx-10">
@@ -160,7 +160,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Produk */}
+        
         {categories.map((cat) => (
           <div key={cat.id} className="mt-10 px-6 mx-20">
             <ProductCarousel
