@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { Barang } from "@/interfaces/barang.interfaces";
 import Image from "next/image";
 import ProfileCompletionCheck from '@/components/ui/ProfileCompletionCheck';
-// import { UserResponse, User } from "@/interfaces/user.interfaces";
 const DetailProduk = () => {
   const router = useRouter();
   const params = useParams();
@@ -90,14 +89,28 @@ const DetailProduk = () => {
   
   // Helper function to get current user ID (implement based on your auth system)
   const getCurrentUserId = async () => {
-    // Example implementation - replace with your actual authentication method
-    const response = await fetch('/api/me');
-    if (response.ok) {
-      const data = await response.json();
-      console.log(data.UserResponse.User.id);
-      return data.UserResponse.User.id;
+    try {
+      const response = await fetch('/api/me');
+      
+      if (!response.ok) {
+        throw new Error('Failed to get user information');
+      }
+      
+      const responseData = await response.json();
+      console.log('API Response:', responseData);
+      
+      // Access the ID based on the correct response structure
+      const userId = responseData.data.user.id;
+      
+      if (!userId) {
+        throw new Error('User ID not found in response');
+      }
+      
+      return userId;
+    } catch (error) {
+      console.error('Error getting user ID:', error);
+      throw new Error('Failed to get user information');
     }
-    throw new Error('Failed to get user information');
   };
   
 
