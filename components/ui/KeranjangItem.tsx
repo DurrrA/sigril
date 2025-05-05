@@ -1,5 +1,6 @@
 import Image from "next/image";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 interface KeranjangItemProps {
   id: string;
@@ -7,9 +8,10 @@ interface KeranjangItemProps {
   name: string;
   price: string;
   initialQuantity: number;
-  onQuantityChange?: (id: string, quantity: number) => void;
-  onSelectChange?: (id: string, selected: boolean) => void;
-  selected?: boolean; // Tambahkan prop ini
+  onQuantityChange: (id: string, quantity: number) => void;
+  onSelectChange: (id: string, selected: boolean) => void;
+  selected: boolean;
+  maxQuantity?: number;
 }
 
 const KeranjangItem: React.FC<KeranjangItemProps> = ({
@@ -20,16 +22,25 @@ const KeranjangItem: React.FC<KeranjangItemProps> = ({
   initialQuantity,
   onQuantityChange,
   onSelectChange,
-  selected = false, // Default false
+  selected,
+  maxQuantity
 }) => {
   const [quantity, setQuantity] = useState(initialQuantity);
 
+  useEffect(() => {
+    setQuantity(initialQuantity);
+  }, [initialQuantity]);
+
   const handleIncrease = () => {
+    // Check stock limit before increasing
+    if (maxQuantity !== undefined && quantity >= maxQuantity) {
+      toast.error(`Stok hanya tersedia ${maxQuantity}`);
+      return;
+    }
+    
     const newQuantity = quantity + 1;
     setQuantity(newQuantity);
-    if (onQuantityChange) {
-      onQuantityChange(id, newQuantity);
-    }
+    onQuantityChange(id, newQuantity);
   };
 
   const handleDecrease = () => {
@@ -53,17 +64,19 @@ const KeranjangItem: React.FC<KeranjangItemProps> = ({
       {/* Checkbox */}
       <input
         type="checkbox"
-        checked={selected} // Gunakan prop `selected` untuk mengatur status checkbox
+        checked={selected}
         onChange={handleSelectChange}
         className="w-5 h-5"
       />
 
-      {/* Gambar Produk */}
-      <div className="w-16 h-16 flex-shrink-0">
+      {/* Gambar Produk - Fixed with width and height props */}
+      <div className="w-16 h-16 flex-shrink-0 relative">
         <Image
           src={image}
           alt={name}
-          className="w-full h-full object-cover rounded-md"
+          width={48}
+          height={48}
+          className="object-cover rounded-md"
         />
       </div>
 
