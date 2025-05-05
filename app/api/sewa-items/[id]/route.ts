@@ -14,7 +14,7 @@ const sewaItemSchema = z.object({
 // GET /api/sewa-items/[id] (Get Sewa Item by ID)
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    const sewaItem = await prisma.sewaItem.findUnique({
+    const sewaItem = await prisma.sewa_items.findUnique({
       where: {
         id: parseInt(params.id),
       },
@@ -55,7 +55,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     const body = await req.json();
     const validated = sewaItemSchema.parse(body);
 
-    const updatedSewaItem = await prisma.sewaItem.update({
+    const updatedSewaItem = await prisma.sewa_items.update({
       where: {
         id: parseInt(params.id),
       },
@@ -88,7 +88,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
   }
 
   try {
-    const deletedSewaItem = await prisma.sewaItem.delete({
+    const deletedSewaItem = await prisma.sewa_items.delete({
       where: {
         id: parseInt(params.id),
       },
