@@ -183,17 +183,20 @@ export default function Home() {
           <div className="border-t border-gray-200 w-3/4 mx-auto" />
         </div>
 
-        {/* Review Pelanggan */}
-        <div>
-          <h2 className="text-4xl font-bold text-center mt-20 mb-8">Review Pelanggan</h2>
-          <ReviewCarousel
-            reviews={reviews.slice(0, 4).map((r) => ({
-              profileImage: normalizeImage(r.user.foto),
-              name: r.user.nama,
-              review: r.komentar || ''
-            }))}
-          />
-        </div>
+{/* Review Pelanggan */}
+<div className="bg-gray-50 py-12 px-4 rounded-xl shadow-inner">
+  <h2 className="text-4xl font-extrabold text-center text-gray-800 mb-10">Review Pelanggan</h2>
+  <div className="max-w-6xl mx-auto">
+    <ReviewCarousel
+      reviews={reviews.slice(0, 4).map((r) => ({
+        profileImage: normalizeImage(r.user.foto),
+        name: r.user.nama,
+        review: r.komentar || ''
+      }))}
+    />
+  </div>
+</div>
+
       </main>
 
       {/* Tombol Sebaran Pelanggan */}

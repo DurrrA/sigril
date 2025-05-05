@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { Barang } from "@/interfaces/barang.interfaces";
 import Image from "next/image";
 import ProfileCompletionCheck from '@/components/ui/ProfileCompletionCheck';
+import ToastNotifikasi from '@/components/ui/ToastNotifikasi';
+
 const DetailProduk = () => {
   const router = useRouter();
   const params = useParams();
@@ -14,18 +16,20 @@ const DetailProduk = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         setLoading(true);
         const res = await fetch(`/api/barang/${id}`);
-        
+
         if (!res.ok) {
           const errorData = await res.json();
           throw new Error(errorData.message || "Failed to fetch product");
         }
-        
+
         const data = await res.json();
         setProduct(data.data);
       } catch (err) {
@@ -47,80 +51,70 @@ const DetailProduk = () => {
     }
   };
 
-  const handleAddToCart = async () => {
-    if (product) {
-      try {
-        // Get the current user's ID (you'll need to implement this based on your auth system)
-        const userId = await getCurrentUserId();
-        
-        // Calculate subtotal
-        const subtotal = product.harga * quantity;
-        
-        // Send request to your existing API endpoint
-        const response = await fetch('/api/keranjang', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            id_barang: parseInt(product.id), // Convert ID to number if needed
-            id_user: userId,
-            jumlah: quantity,
-            subtotal: subtotal,
-          }),
-        });
-  
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to add to cart');
-        }
-        
-        // Show success message
-        alert(`${quantity} unit produk "${product.nama}" berhasil ditambahkan ke keranjang!`);
-        
-        // Reset quantity after adding to cart
-        setQuantity(1);
-      } catch (error) {
-        console.error("Error adding to cart:", error);
-        alert("Gagal menambahkan produk ke keranjang. Silakan coba lagi.");
-      }
-    }
-  };
-  
-  // Helper function to get current user ID (implement based on your auth system)
-  const getCurrentUserId = async () => {
-    try {
-      const response = await fetch('/api/me');
-      
-      if (!response.ok) {
-        throw new Error('Failed to get user information');
-      }
-      
-      const responseData = await response.json();
-      console.log('API Response:', responseData);
-      
-      // Access the ID based on the correct response structure
-      const userId = responseData.data.user.id;
-      
-      if (!userId) {
-        throw new Error('User ID not found in response');
-      }
-      
-      return userId;
-    } catch (error) {
-      console.error('Error getting user ID:', error);
-      throw new Error('Failed to get user information');
-    }
-  };
-  
-
   const handleDecrease = () => {
     if (quantity > 1) {
       setQuantity((prev) => prev - 1);
     }
   };
 
+  const getCurrentUserId = async () => {
+    try {
+      const response = await fetch('/api/me');
 
+      if (!response.ok) {
+        throw new Error('Failed to get user information');
+      }
+
+      const responseData = await response.json();
+      console.log('API Response:', responseData);
+
+      const userId = responseData.data.user.id;
+
+      if (!userId) {
+        throw new Error('User ID not found in response');
+      }
+
+      return userId;
+    } catch (error) {
+      console.error('Error getting user ID:', error);
+      throw new Error('Failed to get user information');
+    }
+  };
+
+  const handleAddToCart = async () => {
+    if (product) {
+      try {
+        const userId = await getCurrentUserId();
+        const subtotal = product.harga * quantity;
+
+        const response = await fetch('/api/keranjang', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id_barang: parseInt(product.id),
+            id_user: userId,
+            jumlah: quantity,
+            subtotal,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to add to cart');
+        }
+
+        setToastMessage(`${quantity} unit produk \"${product.nama}\" berhasil ditambahkan ke keranjang!`);
+        setShowToast(true);
+        setQuantity(1);
+      } catch (err) {
+        console.error("Error adding to cart:", err);
+        setToastMessage("Gagal menambahkan produk ke keranjang. Silakan coba lagi.");
+        setShowToast(true);
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -199,10 +193,10 @@ const DetailProduk = () => {
             </button>
           </div>
 
-              <ProfileCompletionCheck
-              onComplete={handleAddToCart}
-              onCancel={() => console.log("User cancelled adding to cart")}
-            >
+          <ProfileCompletionCheck
+            onComplete={handleAddToCart}
+            onCancel={() => console.log("User cancelled adding to cart")}
+          >
             <button
               className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg w-full"
               disabled={product?.stok <= 0}
@@ -212,6 +206,10 @@ const DetailProduk = () => {
           </ProfileCompletionCheck>
         </div>
       </div>
+
+      {showToast && (
+        <ToastNotifikasi message={toastMessage} show={showToast} onClose={() => setShowToast(false)} />
+      )}
     </div>
   );
 };
