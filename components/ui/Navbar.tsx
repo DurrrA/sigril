@@ -12,6 +12,8 @@ import {
   User as UserIcon,
   LogOut,
   ShieldCheck,
+  Menu,
+  X,
 } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
 import { usePathname } from "next/navigation"
@@ -24,15 +26,19 @@ const Navbar = () => {
   const { status } = useSession()
   const [userData, setUserData] = useState<User | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
 
   const isLoggedIn = status === "authenticated"
 
-  // Menutup dropdown jika klik di luar area dropdown
+  // Tutup dropdown jika klik di luar
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setDropdownOpen(false)
       }
     }
@@ -40,12 +46,13 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  // Menutup dropdown saat berpindah halaman
+  // Tutup dropdown & mobile menu saat rute berubah
   useEffect(() => {
     setDropdownOpen(false)
+    setMobileOpen(false)
   }, [pathname])
 
-  // Mengambil data user saat sudah login
+  // Ambil data user saat login
   useEffect(() => {
     const fetchUserData = async () => {
       if (isLoggedIn) {
@@ -67,6 +74,7 @@ const Navbar = () => {
   }, [isLoggedIn])
 
   const toggleDropdown = () => setDropdownOpen((prev) => !prev)
+  const toggleMobile = () => setMobileOpen((prev) => !prev)
 
   const handleLogout = async () => {
     await signOut({ redirect: true, callbackUrl: "/" })
@@ -77,13 +85,22 @@ const Navbar = () => {
 
   return (
     <nav className="bg-[#3528AB] px-4 md:px-20 py-3 sticky top-0 z-50 shadow-md">
-      <div className="relative flex items-center justify-between">
+      <div className="flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center">
           <Image src="/logo.png" alt="Logo" width={40} height={40} />
         </Link>
 
-        {/* Navigasi Tengah */}
+        {/* Hamburger Mobile */}
+        <button
+          className="md:hidden text-white"
+          onClick={toggleMobile}
+          aria-label="Toggle menu"
+        >
+          {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+
+        {/* Navigasi Tengah Desktop */}
         <div className="hidden md:flex space-x-6 text-white font-medium absolute left-1/2 transform -translate-x-1/2">
           {[
             { label: "Home", href: "/" },
@@ -103,18 +120,19 @@ const Navbar = () => {
           ))}
         </div>
 
-        {/* Ikon kanan */}
+        {/* Ikon Kanan */}
         <div className="flex items-center gap-4 text-white">
-          {/* User Info */}
+          {/* User Info Desktop */}
           {isLoggedIn && userData && (
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden md:flex fixed top-4 right-40 z-50 items-center gap-2">
               <span className="font-medium">
                 Hi, {userData.username || userData.email.split("@")[0]}
               </span>
               <Avatar className="h-8 w-8 border-2 border-white">
-                <AvatarImage src={userData.avatar || ""} alt="Profile" />
+                <AvatarImage src={userData?.avatar || ""} alt="Profile" />
                 <AvatarFallback>
-                  {userData.username?.[0]?.toUpperCase() || userData.email?.[0]?.toUpperCase()}
+                  {userData?.username?.[0]?.toUpperCase() ||
+                    userData?.email?.[0]?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
             </div>
@@ -161,7 +179,7 @@ const Navbar = () => {
                   </>
                 ) : (
                   <>
-                    {/* Header user */}
+                    {/* Header User */}
                     <div className="p-4 border-b border-gray-100">
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-10 w-10">
@@ -173,13 +191,12 @@ const Navbar = () => {
                         </Avatar>
                         <div>
                           <p className="font-medium text-[#3528AB]">
-                            {userData?.username || userData?.email?.split("@")[0]}
+                            {userData?.username || userData?.email.split("@")[0]}
                           </p>
                           <p className="text-xs text-gray-500">{userData?.email}</p>
                         </div>
                       </div>
                     </div>
-
                     {/* Menu User */}
                     <div className="py-1">
                       <Link
@@ -216,6 +233,82 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+
+      {/* Menu Mobile */}
+      {mobileOpen && (
+        <div className="md:hidden mt-2 space-y-2 bg-[#3528AB] px-4 py-4">
+          {[
+            { label: "Home", href: "/" },
+            { label: "Produk", href: "/produk" },
+            { label: "Kontak Kami", href: "/kontak" },
+          ].map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "block px-3 py-2 rounded transition-all duration-300 text-white",
+                pathname === link.href && "bg-white text-[#3528AB]"
+              )}
+            >
+              {link.label}
+            </Link>
+          ))}
+          {isLoggedIn && userData ? (
+            <>
+              <Link
+                href="/profile"
+                onClick={() => setMobileOpen(false)}
+                className="block px-3 py-2 rounded text-white hover:bg-white hover:text-[#3528AB]"
+              >
+                Profil Saya
+              </Link>
+              <Link
+                href="/myTransaction"
+                onClick={() => setMobileOpen(false)}
+                className="block px-3 py-2 rounded text-white hover:bg-white hover:text-[#3528AB]"
+              >
+                Pesanan Saya
+              </Link>
+              {userData.role?.role_name === "Admin" && (
+                <Link
+                  href="/admin/dashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-3 py-2 rounded text-white hover:bg-white hover:text-[#3528AB]"
+                >
+                  Dashboard Admin
+                </Link>
+              )}
+              <button
+                onClick={() => {
+                  setMobileOpen(false)
+                  handleLogout()
+                }}
+                className="w-full text-left block px-3 py-2 rounded text-red-300 hover:bg-red-50"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                onClick={() => setMobileOpen(false)}
+                className="block px-3 py-2 rounded text-white hover:bg-white hover:text-[#3528AB]"
+              >
+                Login
+              </Link>
+              <Link
+                href="/login?mode=register"
+                onClick={() => setMobileOpen(false)}
+                className="block px-3 py-2 rounded text-white hover:bg-white hover:text-[#3528AB]"
+              >
+                Register
+              </Link>
+            </>
+          )}
+        </div>
+      )}
     </nav>
   )
 }
