@@ -62,7 +62,11 @@ const data = {
       url: "/admin/artikel",
       icon: NewspaperIcon,
     },
-    
+    {
+      title: "Kategori",
+      url: "/admin/kategori",
+  
+    },
   ],
   NavSecondary: [
     {
