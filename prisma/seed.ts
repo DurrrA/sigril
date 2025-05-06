@@ -58,19 +58,30 @@ async function main() {
   ]
   const barangs = await Promise.all(barangData.map(b => prisma.barang.create({ data: b })))
 
+  // 5) Rental requests with updated status values
   const sewaReqs = await Promise.all(
     Array.from({ length: 5 }).map(async () => {
       const user  = faker.helpers.arrayElement(users)
       const start = faker.date.recent({ days: 10 })
-      const end   = new Date(start.getTime() + faker.number.int({ min: 1, max: 72 }) * 3600_000)
+      const end   = new Date(start.getTime() + faker.number.int({ min: 1, max: 7 }) * 86400000) // 1-7 days
+
+      // Calculate if it should have an actual return date
+      const status = faker.helpers.arrayElement(['pending', 'confirmed', 'active', 'completed', 'cancelled'])
+      const actualReturnDate = status === 'completed' ? 
+        new Date(end.getTime() + faker.number.int({ min: -24, max: 48 }) * 3600000) // ±2 days from end date
+        : null
 
       return prisma.sewa_req.create({
         data: {
           id_user:    user.id,
           start_date: start,
           end_date:   end,
-          status:     faker.helpers.arrayElement(['PENDING', 'APPROVED', 'COMPLETED']),
-          dikembalikan_pada: faker.datatype.boolean() ? end : null,
+          status:     status,
+          dikembalikan_pada: status === 'completed' ? actualReturnDate : null,
+          penalties_applied: status === 'completed' && faker.datatype.boolean(),
+          has_been_inspected: status === 'completed',
+          payment_status: status === 'pending' ? 'unpaid' : 'paid',
+          total_amount: faker.number.float({ min: 50000, max: 500000, fractionDigits: 2 }),
           sewa_items: {
             create: Array.from({ length: faker.number.int({ min: 1, max: 3 }) }).map(() => {
               const item = faker.helpers.arrayElement(barangs)
@@ -109,40 +120,59 @@ async function main() {
     })
   )
 
-  // 7) Keranjang
+  // 7) Keranjang - UPDATED to include rental dates
   await Promise.all(
     Array.from({ length: 5 }).map(() => {
       const user = faker.helpers.arrayElement(users)
       const item = faker.helpers.arrayElement(barangs)
       const qty  = faker.number.int({ min: 1, max: 3 })
+      
+      // Generate rental dates for cart items
+      const startDate = faker.date.soon({ days: 7 })
+      const endDate = new Date(startDate.getTime() + faker.number.int({ min: 1, max: 7 }) * 86400000) // 1-7 days
+      const rentalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / 86400000)
+      
       return prisma.keranjang.create({
         data: {
           id_user:   user.id,
           id_barang: item.id,
           jumlah:    qty,
-          subtotal:  item.harga * qty,
+          subtotal:  item.harga * qty * rentalDays, // Adjusted for rental days
+          start_date: startDate,
+          end_date: endDate,
+          rental_days: rentalDays
         },
       })
     })
   )
 
-  // 8) Penalti (random subset)
+  // 8) Penalti - UPDATED with new fields
   await Promise.all(
     sewaReqs
-      .filter(() => faker.datatype.boolean())
+      .filter(r => r.status === 'completed' && r.penalties_applied)
       .map(async (r) => {
         // pick one of its items
-        const si  = await prisma.sewa_items.findFirst({ where: { id_sewa_req: r.id } })
+        const si = await prisma.sewa_items.findFirst({ where: { id_sewa_req: r.id } })
         if (!si) return
         const item = await prisma.barang.findUnique({ where: { id: si.id_barang } })
         if (!item) return
 
         const hoursLate = faker.number.int({ min: 1, max: 5 })
+        const penalty = hoursLate * item.harga_pinalti_per_jam
+        
         return prisma.penalti.create({
           data: {
-            id_barang:   item.id,
-            id_user:     r.id_user,
-            total_bayar: hoursLate * item.harga_pinalti_per_jam,
+            id_barang: item.id,
+            id_user: r.id_user,
+            id_sewa: r.id, // Link to rental request
+            total_bayar: penalty,
+            alasan: faker.helpers.arrayElement([
+              'Late return',
+              'Minor damage',
+              'Missing accessory',
+              'Cleaning needed'
+            ]),
+            status: faker.helpers.arrayElement(['unpaid', 'paid']),
           },
         })
       })

@@ -2,14 +2,14 @@
 import { requireAdmin } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { z } from "zod";
+// import { z } from "zod";
 
-// Schema validasi untuk penalti update
-const penaltiSchema = z.object({
-  nama: z.string().min(1, "Nama penalti wajib diisi"),
-  nilai: z.number().min(1, "Nilai penalti wajib lebih besar dari 0"),
-  deskripsi: z.string().optional(),
-});
+// // Schema validasi untuk penalti update
+// const penaltiSchema = z.object({
+//   nama: z.string().min(1, "Nama penalti wajib diisi"),
+//   nilai: z.number().min(1, "Nilai penalti wajib lebih besar dari 0"),
+//   deskripsi: z.string().optional(),
+// });
 
 // /api/penalti/[id].ts
 

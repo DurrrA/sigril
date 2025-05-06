@@ -5,11 +5,14 @@ import KeranjangItem from "../../components/ui/KeranjangItem";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { KeranjangItemView, Keranjang } from "@/interfaces/keranjang.interfaces";
+import {useRouter} from "next/navigation";
 
 const KeranjangPage = () => {
+  const router = useRouter();
   const [items, setItems] = useState<KeranjangItemView[]>([]);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch cart items on component mount
   useEffect(() => {
@@ -40,7 +43,12 @@ const KeranjangPage = () => {
         price: item.barang?.harga || 0,
         initialQuantity: item.jumlah,
         barangId: item.id_barang,
-        stock: item.barang?.stok || 0
+        stock: item.barang?.stok || 0,
+        // Added rental information
+        startDate: item.start_date || new Date(),
+        endDate: item.end_date || new Date(),
+        rentalDays: item.rental_days || 1,
+        subtotal: item.subtotal || 0
       }));
 
       setItems(cartItems);
@@ -145,29 +153,34 @@ const KeranjangPage = () => {
 
   const totalPayment = items
     .filter((item) => selectedItems.includes(item.id))
-    .reduce((total, item) => total + item.price * item.initialQuantity, 0);
-  // masih dalam pengerjaan, belum ada endpoint yang valid untuk checkout atau validasi pembayaran 
-  const handleCheckout = () => {
-    if (selectedItems.length === 0) {
-      toast.error("Silahkan pilih barang terlebih dahulu");
-      return;
-    }
-    
-    // Collect items for checkout
-    const checkoutItems = items
-      .filter(item => selectedItems.includes(item.id))
-      .map(item => ({
-        barangId: item.barangId,
-        quantity: item.initialQuantity,
-        name: item.name,
-        price: item.price,
-        subtotal: item.price * item.initialQuantity
-      }));
+    .reduce((total, item) => total + item.subtotal, 0);
+
+    const handleCheckout = async () => {
+      if (selectedItems.length === 0) {
+        toast.error("Silahkan pilih barang terlebih dahulu");
+        return;
+      }
       
-    // Store in session storage for the checkout page
-    sessionStorage.setItem('checkoutItems', JSON.stringify(checkoutItems));
-    window.location.href = '/booking';
-  };
+      try {
+        setIsSubmitting(true);
+        
+        // Store selected item data in session storage for booking/payment pages
+        const selectedCartItems = items.filter(item => selectedItems.includes(item.id));
+        
+        // Save to session storage so booking/payment pages can access the data
+        sessionStorage.setItem('selectedCartItems', JSON.stringify(selectedCartItems));
+        sessionStorage.setItem('cartTotal', totalPayment.toString());
+        
+        // Instead of creating a rental request now, redirect to booking details
+        router.push('/booking/detail');
+        
+      } catch (error) {
+        console.error('Checkout error:', error);
+        toast.error("Error preparing checkout. Please try again.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
 
   if (isLoading) {
     return (
@@ -224,23 +237,34 @@ const KeranjangPage = () => {
               id={item.id}
               image={item.image}
               name={item.name}
-              price={`Rp ${item.price.toLocaleString("id-ID")}`}
+              price={`Rp ${item.price.toLocaleString("id-ID")} / hari`}
               initialQuantity={item.initialQuantity}
               onQuantityChange={handleQuantityChange}
               onSelectChange={(id, selected) => handleSelectChange(id, selected)}
               selected={selectedItems.includes(item.id)}
               maxQuantity={item.stock}
+              startDate={item.startDate}
+              endDate={item.endDate}
+              rentalDays={item.rentalDays}
             />
           ))}
 
+          {/* Total Pembayaran */}
           <div className="mt-6 flex justify-end">
-            <button 
-              onClick={handleCheckout}
-              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50 disabled:pointer-events-none"
-              disabled={selectedItems.length === 0}
-            >
-              Lanjut ke Pembayaran (Rp {totalPayment.toLocaleString("id-ID")})
-            </button>
+          <button 
+            onClick={handleCheckout} // Keep your existing logic for API calls
+            disabled={selectedItems.length === 0 || isSubmitting}
+            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2 inline" />
+                Memproses...
+              </>
+            ) : (
+              `Lanjutkan ke Pembayaran (Rp ${totalPayment.toLocaleString("id-ID")})`
+            )}
+          </button>
           </div>
         </>
       )}

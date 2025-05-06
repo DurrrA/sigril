@@ -96,59 +96,58 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  const authCheck = await requireAuth();
-  if (!authCheck.isAuthenticated) {
-    return NextResponse.redirect(new URL('/login', request.url));
+export async function DELETE(
+    request: NextRequest,
+    context : { params: { id: string } }
+  ) {
+    try {
+      const session = await getServerSession(authConfig);
+      
+      if (!session) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      
+      // Correctly access params.id as a string and convert to number
+      const id = Number(context.params.id);
+      
+      if (isNaN(id)) {
+        return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+      }
+  
+      // Check if cart item exists and belongs to current user
+      const cartItem = await prisma.keranjang.findUnique({
+        where: { id: id }
+      });
+  
+      if (!cartItem) {
+        return NextResponse.json({ error: "Cart item not found" }, { status: 404 });
+      }
+  
+      // Verify ownership
+      const user = await prisma.user.findUnique({
+        where: { email: session.user?.email ?? "" }
+      });
+  
+      if (!user || cartItem.id_user !== user.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+  
+      // Delete the cart item
+      await prisma.keranjang.delete({
+        where: { id: id }
+      });
+  
+      return NextResponse.json(
+        { message: "Item removed from cart" },
+        { status: 200 }
+      );
+    } catch (error) {
+      console.error("Error deleting cart item:", error);
+      return NextResponse.json(
+        { error: "Failed to remove item from cart" },
+        { status: 500 }
+      );
+    }
   }
 
-  try {
-    // Get user from session
-    const session = await getServerSession(authConfig);
-    const user = await prisma.user.findUnique({
-      where: { email: session?.user?.email ?? "" }
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check if cart item exists and belongs to current user
-    const cartItem = await prisma.keranjang.findUnique({
-      where: { id: Number(params.id) }
-    });
-
-    if (!cartItem) {
-      return NextResponse.json(
-        { message: 'Cart item not found' },
-        { status: 404 }
-      );
-    }
-
-    if (cartItem.id_user !== user.id) {
-      return NextResponse.json(
-        { message: 'You do not have permission to delete this cart item' },
-        { status: 403 }
-      );
-    }
-
-    // Delete the cart item
-    await prisma.keranjang.delete({
-      where: { id: Number(params.id) }
-    });
-
-    return NextResponse.json(
-      { message: 'Cart item removed successfully' },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error('Error deleting cart item:', error);
-    return NextResponse.json(
-      { message: 'Failed to remove cart item' },
-      { status: 500 }
-    );
-  }
-}
+  

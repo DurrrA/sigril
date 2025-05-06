@@ -6,10 +6,6 @@ import { requireAuth } from '@/lib/auth';
 import { getServerSession } from 'next-auth';
 import { authConfig } from '@/lib/auth'; // Adjust the import path as necessary
 
-const keranjangSchema = z.object({
-  id_barang: z.number().min(1, 'ID Barang is required'),
-  jumlah: z.number().min(1, 'Jumlah is required'),
-});
 
 // GET current user's cart items
 export async function GET(request: NextRequest) {
@@ -61,10 +57,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
-    const validatedData = keranjangSchema.parse(body);
-
-    // Get current user
+    // Get user from session
     const session = await getServerSession(authConfig);
     const user = await prisma.user.findUnique({
       where: { email: session?.user?.email ?? "" }
@@ -76,66 +69,72 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-
-    // Verify product exists and is in stock
+    
+    const body = await request.json();
+    // Update schema to include rental dates
+    const keranjangSchema = z.object({
+      id_barang: z.number().min(1, 'ID Barang is required'),
+      jumlah: z.number().min(1, 'Jumlah is required'),
+      startDate: z.string().datetime(), // Add validation for dates
+      endDate: z.string().datetime(),
+      rentalDays: z.number().min(1, 'Rental days must be at least 1')
+    });
+    
+    const validatedData = keranjangSchema.parse(body);
+    
+    // Check availability before adding to cart
+    const availabilityCheck = await fetch(
+      `${request.nextUrl.origin}/api/sewa/availability?itemId=${validatedData.id_barang}&startDate=${validatedData.startDate}&endDate=${validatedData.endDate}`
+    );
+    
+    if (!availabilityCheck.ok) {
+      throw new Error("Couldn't verify availability");
+    }
+    
+    const availabilityData = await availabilityCheck.json();
+    if (!availabilityData.available || availabilityData.availableQuantity < validatedData.jumlah) {
+      return NextResponse.json(
+        { message: 'Not enough stock available for selected dates' },
+        { status: 400 }
+      );
+    }
+    
+    // Get the item to calculate subtotal
     const barang = await prisma.barang.findUnique({
       where: { id: validatedData.id_barang }
     });
-
+    
     if (!barang) {
       return NextResponse.json(
         { message: 'Product not found' },
         { status: 404 }
       );
     }
+    
+    // Calculate subtotal based on rental days
+    const subtotal = barang.harga * validatedData.jumlah * validatedData.rentalDays;
 
-    if (barang.stok < validatedData.jumlah) {
-      return NextResponse.json(
-        { message: 'Not enough stock available' },
-        { status: 400 }
-      );
-    }
-
-    // Calculate correct subtotal
-    const subtotal = barang.harga * validatedData.jumlah;
-
-    // Check if this product is already in cart
-    const existingCartItem = await prisma.keranjang.findFirst({
-      where: {
+    // Now create cart item with rental dates
+    const result = await prisma.keranjang.create({
+      data: {
+        id_user: user.id,
         id_barang: validatedData.id_barang,
-        id_user: user.id
+        jumlah: validatedData.jumlah,
+        subtotal: subtotal,
+        start_date: new Date(validatedData.startDate),
+        end_date: new Date(validatedData.endDate),
+        rental_days: validatedData.rentalDays
+      },
+      include: {
+        barang: true
       }
     });
-
-    let result;
-    if (existingCartItem) {
-      // Update existing cart item quantity
-      result = await prisma.keranjang.update({
-        where: { id: existingCartItem.id },
-        data: {
-          jumlah: existingCartItem.jumlah + validatedData.jumlah,
-          subtotal: existingCartItem.subtotal + subtotal
-        },
-        include: { barang: true }
-      });
-    } else {
-      // Create new cart item
-      result = await prisma.keranjang.create({
-        data: {
-          id_barang: validatedData.id_barang,
-          id_user: user.id,
-          jumlah: validatedData.jumlah,
-          subtotal: subtotal,
-        },
-        include: { barang: true }
-      });
-    }
 
     return NextResponse.json(
       { message: 'Item added to cart successfully', data: result },
       { status: 201 }
     );
-  } catch (error) {
+  }catch (error) {
     console.error('Error adding to cart:', error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(

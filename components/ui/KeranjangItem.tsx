@@ -1,6 +1,7 @@
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface KeranjangItemProps {
   id: string;
@@ -12,6 +13,10 @@ interface KeranjangItemProps {
   onSelectChange: (id: string, selected: boolean) => void;
   selected: boolean;
   maxQuantity?: number;
+  // New rental properties
+  startDate: string | Date;
+  endDate: string | Date;
+  rentalDays: number;
 }
 
 const KeranjangItem: React.FC<KeranjangItemProps> = ({
@@ -23,7 +28,10 @@ const KeranjangItem: React.FC<KeranjangItemProps> = ({
   onQuantityChange,
   onSelectChange,
   selected,
-  maxQuantity
+  maxQuantity,
+  startDate,
+  endDate,
+  rentalDays
 }) => {
   const [quantity, setQuantity] = useState(initialQuantity);
 
@@ -59,6 +67,15 @@ const KeranjangItem: React.FC<KeranjangItemProps> = ({
     }
   };
 
+  // Format dates for display
+  const formattedStartDate = typeof startDate === 'string' ? 
+    format(new Date(startDate), 'dd/MM/yyyy') : 
+    format(startDate, 'dd/MM/yyyy');
+  
+  const formattedEndDate = typeof endDate === 'string' ? 
+    format(new Date(endDate), 'dd/MM/yyyy') : 
+    format(endDate, 'dd/MM/yyyy');
+
   return (
     <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-md mb-4">
       {/* Checkbox */}
@@ -69,21 +86,36 @@ const KeranjangItem: React.FC<KeranjangItemProps> = ({
         className="w-5 h-5"
       />
 
-      {/* Gambar Produk - Fixed with width and height props */}
+      {/* Gambar Produk */}
       <div className="w-16 h-16 flex-shrink-0 relative">
         <Image
           src={image}
           alt={name}
-          width={48}
-          height={48}
+          width={64}
+          height={64}
           className="object-cover rounded-md"
         />
       </div>
 
-      {/* Nama dan Harga Produk */}
+      {/* Nama, Harga, dan Rental Info */}
       <div className="flex-grow">
         <p className="text-lg font-bold text-gray-800">{name}</p>
         <p className="text-orange-500 font-bold">{price}</p>
+        
+        {/* Rental dates information */}
+        <div className="text-sm text-gray-600 mt-1">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <span className="font-medium">Mulai:</span> {formattedStartDate}
+            </div>
+            <div>
+              <span className="font-medium">Selesai:</span> {formattedEndDate}
+            </div>
+            <div className="col-span-2">
+              <span className="font-medium">Durasi:</span> {rentalDays} hari
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Jumlah Produk */}
