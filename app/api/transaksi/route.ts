@@ -1,6 +1,8 @@
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authConfig } from '@/lib/auth'; // Adjust the import path as necessary
 
 const transaksiSchema = z.object({
     id_user: z.number().min(1, 'ID User is required'),
@@ -12,29 +14,79 @@ const transaksiSchema = z.object({
 
 export async function GET() {
     try {
-        const transaksi = await prisma.transaksi.findMany({
+      const session = await getServerSession(authConfig);
+      
+      if (!session) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+  
+      // Find the current user
+      const user = await prisma.user.findUnique({
+        where: { email: session.user?.email ?? "" },
+        select: { id: true }
+      });
+  
+      if (!user) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+  
+      // Get all rental requests for this user
+      const rentalRequests = await prisma.sewa_req.findMany({
+        where: {
+          id_user: user.id,
+        },
+        include: {
+          sewa_items: {
             include: {
-                user: true
+              barang: true,
             },
-        });
-
-        return NextResponse.json(
-            { message: 'Transaksi fetched successfully', data: transaksi },
-            { status: 200 }
-        );
+          },
+        },
+        orderBy: {
+          start_date: 'desc', // Most recent first
+        },
+      });
+  
+      // Format the response
+      const formattedTransactions = rentalRequests.map(request => {
+        const items = request.sewa_items.map(item => ({
+          id: item.id,
+          name: item.barang.nama,
+          quantity: item.jumlah,
+          price: item.barang.harga,
+          subtotal: item.harga_total,
+        }));
+  
+        return {
+          id: request.id,
+          start_date: request.start_date.toISOString(),
+          end_date: request.end_date.toISOString(),
+          status: request.status,
+          payment_status: request.payment_status,
+          items: items,
+          totalAmount: request.total_amount || 
+                       items.reduce((sum, item) => sum + item.subtotal, 0),
+          createdAt: new Date(request.start_date).toISOString(), // Use start date since there's no created_at
+        };
+      });
+  
+      return NextResponse.json({ 
+        success: true, 
+        data: formattedTransactions 
+      });
     } catch (error) {
-        console.error('Error fetching transaksi:', error);
-        return NextResponse.json(
-            { message: 'Failed to fetch transaksi' },
-            { status: 500 }
-        );
+      console.error("Error fetching transactions:", error);
+      return NextResponse.json(
+        { error: "Failed to retrieve transactions" },
+        { status: 500 }
+      );
     }
-}
+  }
 
-export async function POST(request: NextRequest) {
+  export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const validatedData = transaksiSchema.parse(body); // Validate the incoming data
+        const validatedData = transaksiSchema.parse(body);
 
         const newTransaksi = await prisma.transaksi.create({
             data: {
@@ -48,8 +100,14 @@ export async function POST(request: NextRequest) {
                 user: true
             },
         });
+        
+        // Return the proper structure including the ID
         return NextResponse.json(
-            { message: 'Transaksi created successfully', data: newTransaksi },
+            { 
+                message: 'Transaksi created successfully', 
+                data: newTransaksi,
+                id: newTransaksi.id // Make sure ID is accessible at the top level
+            },
             { status: 201 }
         );
     } catch (error) {

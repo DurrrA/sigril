@@ -67,6 +67,9 @@ model keranjang {
   id_barang Int
   jumlah    Int
   subtotal  Float
+  start_date DateTime
+  end_date   DateTime
+  rental_days Int
   barang    barang @relation(fields: [id_barang], references: [id], map: "Keranjang_id_barang_fkey")
   user      user   @relation(fields: [id_user], references: [id], map: "Keranjang_id_user_fkey")
 
@@ -75,15 +78,21 @@ model keranjang {
 }
 
 model penalti {
-  id          Int    @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
+  id_sewa     Int       // Add to link directly to the rental
   id_barang   Int
   id_user     Int
   total_bayar Float
-  barang      barang @relation(fields: [id_barang], references: [id], map: "Penalti_id_barang_fkey")
-  user        user   @relation(fields: [id_user], references: [id], map: "Penalti_id_user_fkey")
+  alasan      String    // Add reason for penalty
+  status      String    @default("unpaid") // Add status field
+  created_at  DateTime  @default(now())
+  barang      barang    @relation(fields: [id_barang], references: [id])
+  user        user      @relation(fields: [id_user], references: [id])
+  sewa_req    sewa_req  @relation(fields: [id_sewa], references: [id]) // Add this relation
 
-  @@index([id_barang], map: "Penalti_id_barang_fkey")
-  @@index([id_user], map: "Penalti_id_user_fkey")
+  @@index([id_barang])
+  @@index([id_user])
+  @@index([id_sewa])
 }
 
 model review {
@@ -129,7 +138,12 @@ model sewa_req {
   status            String
   dikembalikan_pada DateTime?
   sewa_items        sewa_items[]
+  penalties_applied Boolean      @default(false)
+  has_been_inspected Boolean     @default(false)
+  payment_status      String       @default("unpaid")
+  total_amount        Float?
   user              user         @relation(fields: [id_user], references: [id], map: "Sewa_req_id_user_fkey")
+  penalti        penalti[]
 
   @@index([id_user], map: "Sewa_req_id_user_fkey")
 }

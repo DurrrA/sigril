@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
-// Schema validasi untuk sewa item update
+// Schema validation for sewa item update - fixed field names
 const sewaItemSchema = z.object({
-  barangId: z.number().min(1, "Barang ID wajib diisi"),
-  userId: z.number().min(1, "User ID wajib diisi"),
-  totalBayar: z.number().min(1, "Total bayar wajib lebih besar dari 0"),
+  id_barang: z.number().min(1, "Barang ID wajib diisi"),
+  harga_total: z.number().min(1, "Total bayar wajib lebih besar dari 0"),
+  jumlah: z.number().min(1, "Jumlah wajib diisi"),
   status: z.string().min(1, "Status wajib diisi"),
 });
 
@@ -19,8 +19,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         id: parseInt(params.id),
       },
       include: {
-        barang: true,  // include related barang model
-        user: true,    // include related user model
+        barang: true,
+        sewa_req: {
+          include: {
+            user: true
+          }
+        }
       },
     });
 
@@ -31,10 +35,16 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       );
     }
 
-    return NextResponse.json(
-      { message: "Sewa item fetched successfully", data: sewaItem },
-      { status: 200 }
-    );
+    // Now get user data from the sewa_req relation
+    const userData = sewaItem.sewa_req.user;
+
+    return NextResponse.json({
+      message: "Sewa item fetched successfully", 
+      data: {
+        ...sewaItem,
+        userData
+      }
+    }, { status: 200 });
   } catch (error) {
     console.error("Error fetching sewa item:", error);
     return NextResponse.json(
@@ -60,10 +70,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         id: parseInt(params.id),
       },
       data: {
-        barangId: validated.barangId,
-        userId: validated.userId,
-        totalBayar: validated.totalBayar,
-        status: validated.status,
+        // Fix field names to match your schema
+        id_barang: validated.id_barang,
+        harga_total: validated.harga_total,
+        jumlah: validated.jumlah,
       },
     });
 

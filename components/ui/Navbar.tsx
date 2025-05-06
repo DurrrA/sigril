@@ -14,7 +14,7 @@ import {
   ShieldCheck,
 } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
-import { useRouter, usePathname } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -25,7 +25,6 @@ const Navbar = () => {
   const [userData, setUserData] = useState<User | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const router = useRouter()
   const pathname = usePathname()
 
   const isLoggedIn = status === "authenticated"

@@ -16,14 +16,16 @@ export interface KeranjangCollectionResponse {
 
 // Cart item model matching your Prisma schema
 export interface Keranjang {
-  id: number;
-  id_user: number;
-  id_barang: number;
-  jumlah: number;
-  subtotal: number;
-  barang?: Barang;
-}
-
+    id: number;
+    id_user: number;
+    id_barang: number;
+    jumlah: number;
+    subtotal: number;
+    start_date: string | Date;
+    end_date: string | Date;
+    rental_days: number;
+    barang?: Barang;
+  }
 // Barang model matching your Prisma schema
 export interface Barang {
   id: number;
@@ -39,14 +41,18 @@ export interface Barang {
 
 // Cart item for frontend display
 export interface KeranjangItemView {
-  id: string;
-  image: string;
-  name: string;
-  price: number;
-  initialQuantity: number;
-  barangId: number;
-  stock?: number;
-}
+    id: string;
+    image: string;
+    name: string;
+    price: number;
+    initialQuantity: number;
+    barangId: number;
+    stock?: number;
+    startDate: string | Date;
+    endDate: string | Date;
+    rentalDays: number;
+    subtotal: number;
+  }
 
 // Cart item data for checkout
 export interface CheckoutItem {

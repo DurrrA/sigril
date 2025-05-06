@@ -1,215 +1,266 @@
 "use client"
 
-import { useState } from "react"
-import Image from "next/image"
-import { Calendar, Clock, Star } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
+import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { format } from 'date-fns'
+import { id } from 'date-fns/locale'
+import { 
+  CheckCircle, 
+  Clock, 
+  Loader2, 
+  ChevronRight, 
+  Filter, 
+  Search,
+  X,
+  AlertCircle
+} from 'lucide-react'
+import Link from 'next/link'
+import { toast } from 'sonner'
 
-// Sample data for orders with only COD and QRIS payment methods
-const initialOrders = [
-  {
-    id: 1,
-    name: "Big Family Packages",
-    date: "Sabtu, 12 April 2025",
-    time: "14:00 WIB",
-    paymentMethod: "QRIS",
-    price: 75000,
-    status: "upcoming",
-    reviewed: false,
-  },
-  {
-    id: 2,
-    name: "Big Family Packages",
-    date: "Sabtu, 12 April 2025",
-    time: "14:00 WIB",
-    paymentMethod: "COD",
-    price: 25000,
-    status: "ended",
-    reviewed: false,
-  },
-  {
-    id: 3,
-    name: "Big Family Packages",
-    date: "Sabtu, 12 April 2025",
-    time: "14:00 WIB",
-    paymentMethod: "QRIS",
-    price: 25000,
-    status: "ended",
-    reviewed: true,
-  },
-]
+// Interface definitions
+interface Transaction {
+  id: number
+  start_date: string
+  end_date: string
+  status: string
+  payment_status: string
+  totalAmount: number
+  items: TransactionItem[]
+  createdAt: string
+}
 
-export default function PesananSayaPage() {
-  const [orders, setOrders] = useState(initialOrders)
-  const [isReviewOpen, setIsReviewOpen] = useState(false)
-  const [currentOrderId, setCurrentOrderId] = useState<number | null>(null)
-  const [rating, setRating] = useState(0)
-  const [reviewText, setReviewText] = useState("")
+interface TransactionItem {
+  id: number
+  name: string
+  quantity: number
+  price: number
+  subtotal: number
+}
 
-  const handleOpenReview = (orderId: number) => {
-    setCurrentOrderId(orderId)
-    setRating(0)
-    setReviewText("")
-    setIsReviewOpen(true)
-  }
+export default function MyTransactionsPage() {
+  const router = useRouter()
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [filter, setFilter] = useState('all') // all, ongoing, completed, cancelled
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
 
-  const handleSubmitReview = () => {
-    if (currentOrderId) {
-      setOrders(
-        orders.map((order) =>
-          order.id === currentOrderId
-            ? {
-                ...order,
-                reviewed: true,
-              }
-            : order,
-        ),
+  // Fetch transactions data
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        setIsLoading(true)
+        const response = await fetch('/api/transaksi', {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            router.push('/login?redirect=/my-transactions')
+            return
+          }
+          throw new Error('Failed to load transactions')
+        }
+
+        const data = await response.json()
+        setTransactions(data.data || [])
+        console.log('Fetched transactions:', data.data)
+      } catch (error) {
+        console.error('Error fetching transactions:', error)
+        toast.error('Failed to load your transactions')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchTransactions()
+  }, [router])
+
+  // Filter transactions based on selected filter and search query
+  const filteredTransactions = transactions.filter(transaction => {
+    // First apply status filter
+    if (filter !== 'all' && transaction.status.toLowerCase() !== filter) {
+      return false
+    }
+    
+    // Then apply search query if any
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      // Search by transaction ID or item names
+      return (
+        transaction.id.toString().includes(query) ||
+        transaction.items.some(item => item.name.toLowerCase().includes(query))
       )
-      setIsReviewOpen(false)
+    }
+    
+    return true
+  })
+
+  // Get status badge color and text
+  const getStatusInfo = (status: string, paymentStatus: string) => {
+    if (status === 'cancelled') {
+      return {
+        color: 'bg-red-100 text-red-800',
+        text: 'Dibatalkan',
+        icon: <X className="w-4 h-4 mr-1" />
+      }
+    }
+    
+    if (paymentStatus === 'pending' || paymentStatus === 'unpaid') {
+      return {
+        color: 'bg-yellow-100 text-yellow-800',
+        text: 'Menunggu Pembayaran',
+        icon: <Clock className="w-4 h-4 mr-1" />
+      }
+    }
+    
+    if (status === 'completed') {
+      return {
+        color: 'bg-green-100 text-green-800',
+        text: 'Selesai',
+        icon: <CheckCircle className="w-4 h-4 mr-1" />
+      }
+    }
+    
+    return {
+      color: 'bg-blue-100 text-blue-800',
+      text: 'Sedang Berlangsung',
+      icon: <Clock className="w-4 h-4 mr-1" />
     }
   }
 
-  return (
-    <div className="container mx-auto max-w-6xl py-8 px-4">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Pesanan Saya</h1>
-      </div>
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    return format(new Date(dateString), 'd MMM yyyy', { locale: id })
+  }
 
-      <div className="border rounded-lg overflow-hidden">
-        {/* Header */}
-        <div className="grid grid-cols-5 bg-gray-50 p-4 border-b">
-          <div className="col-span-1 font-medium">Package</div>
-          <div className="col-span-1 font-medium">Payment Method</div>
-          <div className="col-span-1 font-medium">Price</div>
-          <div className="col-span-1 font-medium">Status</div>
-          <div className="col-span-1 font-medium">Review</div>
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#3528AB]" />
+          <p className="mt-2 text-gray-600">Loading transactions...</p>
         </div>
-
-        {/* Order Items */}
-        {orders.map((order) => (
-          <div key={order.id} className="grid grid-cols-5 p-4 border-b items-center">
-            <div className="col-span-1">
-              <div className="flex items-center gap-3">
-                <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center overflow-hidden">
-                  <Image src="/placeholder.svg?height=64&width=64" alt="Package" width={64} height={64} />
-                </div>
-                <div>
-                  <h3 className="font-medium">{order.name}</h3>
-                  <div className="flex items-center text-sm text-gray-500 mt-1">
-                    <Calendar className="h-3.5 w-3.5 mr-1" />
-                    <span>{order.date}</span>
-                  </div>
-                  <div className="flex items-center text-sm text-gray-500 mt-1">
-                    <Clock className="h-3.5 w-3.5 mr-1" />
-                    <span>{order.time}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-span-1">
-              <div className="flex items-center gap-2">
-                {order.paymentMethod === "QRIS" ? (
-                  <div className="w-8 h-5 bg-gray-200 flex items-center justify-center rounded">
-                    <span className="text-xs font-medium">QR</span>
-                  </div>
-                ) : (
-                  <div className="w-8 h-5 bg-gray-200 flex items-center justify-center rounded">
-                    <span className="text-xs font-medium">COD</span>
-                  </div>
-                )}
-                <span>{order.paymentMethod}</span>
-              </div>
-            </div>
-
-            <div className="col-span-1 font-medium">Rp {order.price.toLocaleString("id-ID")}</div>
-
-            <div className="col-span-1">
-              {order.status === "upcoming" ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                  <span className="text-yellow-500">Upcoming</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-green-500">Ended</span>
-                </div>
-              )}
-            </div>
-
-            <div className="col-span-1">
-              {order.status === "ended" && !order.reviewed ? (
-                <Button
-                  variant="ghost"
-                  className="text-orange-500 hover:text-orange-600 hover:bg-orange-50 flex items-center gap-1"
-                  onClick={() => handleOpenReview(order.id)}
-                >
-                  <Star className="h-4 w-4" />
-                  Beri Review
-                </Button>
-              ) : order.status === "ended" && order.reviewed ? (
-                <div className="flex items-center gap-1 text-orange-500">
-                  <Star className="h-4 w-4 fill-orange-500" />
-                  <span>Review</span>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        ))}
       </div>
+    )
+  }
 
-      {/* Review Dialog */}
-      <Dialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Berikan Review</DialogTitle>
-            <DialogDescription>
-              Bagaimana pengalaman Anda dengan produk ini? Review Anda akan membantu pengguna lain.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-4 space-y-4">
-            <div className="flex items-center justify-center space-x-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button key={star} type="button" onClick={() => setRating(star)} className="focus:outline-none">
-                  <Star className={`h-8 w-8 ${rating >= star ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
-                </button>
-              ))}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="review">Komentar</Label>
-              <Textarea
-                id="review"
-                placeholder="Tulis komentar Anda di sini..."
-                value={reviewText}
-                onChange={(e) => setReviewText(e.target.value)}
-                rows={4}
-              />
+  return (
+    <div className="container mx-auto max-w-4xl py-8 px-4">
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Transaksi Saya</h1>
+      
+      {/* Search and filter */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className={`relative flex-1 ${isSearchFocused ? 'ring-2 ring-[#3528AB]' : ''}`}>
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Cari transaksi..."
+            className="border border-gray-300 rounded-lg py-2 pl-10 pr-4 w-full focus:outline-none"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
+          />
+        </div>
+        
+        <div className="flex space-x-2">
+          <div className="relative inline-block">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="appearance-none bg-white border border-gray-300 rounded-lg py-2 pl-10 pr-8 focus:outline-none focus:ring-2 focus:ring-[#3528AB]"
+            >
+              <option value="all">Semua Status</option>
+              <option value="ongoing">Sedang Berlangsung</option>
+              <option value="completed">Selesai</option>
+              <option value="cancelled">Dibatalkan</option>
+            </select>
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Filter className="h-4 w-4 text-gray-400" />
             </div>
           </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsReviewOpen(false)}>
-              Batal
-            </Button>
-            <Button onClick={handleSubmitReview} disabled={rating === 0}>
-              Kirim Review
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
+      
+      {/* Transaction list */}
+      {filteredTransactions.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-800 mb-2">Belum ada transaksi</h3>
+          <p className="text-gray-600 mb-6">Anda belum memiliki transaksi atau tidak ada transaksi yang sesuai dengan filter</p>
+          <Link 
+            href="/products"
+            className="inline-flex items-center px-4 py-2 bg-[#3528AB] text-white rounded-lg hover:bg-[#2a1f8a]"
+          >
+            Mulai Menyewa
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredTransactions.map((transaction) => {
+            const { color, text, icon } = getStatusInfo(transaction.status, transaction.payment_status);
+            const startDate = formatDate(transaction.start_date);
+            const endDate = formatDate(transaction.end_date);
+            
+            return (
+              <Link 
+                key={transaction.id}
+                href={`/myTransaction/${transaction.id}`}
+                className="block bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
+              >
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-medium text-gray-800">
+                        Order #{transaction.id}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {format(new Date(transaction.createdAt), 'd MMM yyyy, HH:mm', { locale: id })}
+                      </p>
+                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${color}`}>
+                      {icon}
+                      {text}
+                    </span>
+                  </div>
+                  
+                  <div className="border-t border-b border-gray-100 py-3 my-2">
+                    <p className="text-sm text-gray-600 mb-1">
+                      {transaction.items.length} item
+                      {transaction.items.length > 1 ? 's' : ''}
+                    </p>
+                    <div className="line-clamp-1 text-sm">
+                      {transaction.items.map((item, i) => (
+                        <span key={item.id}>
+                          {item.name}
+                          {i < transaction.items.length - 1 ? ', ' : ''}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-sm mt-2">
+                      <span className="text-gray-600">Periode Sewa:</span>{' '}
+                      <span className="font-medium">{startDate} - {endDate}</span>
+                    </p>
+                  </div>
+                  
+                  <div className="flex justify-between items-center pt-1">
+                    <span className="font-medium">Total:</span>
+                    <div className="flex items-center">
+                      <span className="font-bold text-[#3528AB]">
+                        Rp {transaction.totalAmount.toLocaleString('id-ID')}
+                      </span>
+                      <ChevronRight className="h-5 w-5 text-gray-400 ml-2" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   )
 }

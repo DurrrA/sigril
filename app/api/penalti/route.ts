@@ -41,9 +41,9 @@ export async function POST(req: Request) {
 
     const newPenalti = await prisma.penalti.create({
       data: {
-        nama: validated.nama,
-        nilai: validated.nilai,
-        deskripsi: validated.deskripsi,
+        id_user: validated.id_user,
+        total_bayar: validated.total_bayar,
+        id_barang: validated.id_barang,
       },
     });
 
