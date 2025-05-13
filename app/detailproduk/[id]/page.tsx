@@ -46,7 +46,7 @@ const DetailProduk = () => {
   // Calculate total rental price
   const totalPrice = product ? product.harga * quantity * rentalDays : 0;
   const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState<string>("");
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -120,11 +120,45 @@ const DetailProduk = () => {
     }
   };
 
+  const handleDecrease = () => {
+    if (quantity > 1) {
+      setQuantity((prev) => prev - 1);
+    }
+  };
+
+  const getCurrentUserId = async () => {
+    try {
+      const response = await fetch('/api/me');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to get user information');
+      }
+
+      const responseData = await response.json();
+      console.log('API Response:', responseData);
+
+      const userId = responseData.data.user.id;
+
+      if (!userId) {
+        throw new Error('User ID not found in response');
+      }
+
+      return userId;
+    } catch (error) {
+      console.error('Error getting user ID:', error);
+      throw new Error('Failed to get user information');
+    }
+  };
+
   const handleAddToCart = async () => {
     if (!product) return;
     
     try {
       setIsAddingToCart(true);
+      
+      // Get the current user's ID
+      await getCurrentUserId();
       
       // Calculate subtotal based on rental days
       const subtotal = product.harga * quantity * rentalDays;
@@ -145,16 +179,6 @@ const DetailProduk = () => {
           subtotal: subtotal
         }),
       });
-  
-  const handleDecrease = () => {
-    if (quantity > 1) {
-      setQuantity((prev) => prev - 1);
-    }
-  };
-
-  const getCurrentUserId = async () => {
-    try {
-      const response = await fetch('/api/me');
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -170,18 +194,7 @@ const DetailProduk = () => {
       const goToCart = window.confirm("Item added to cart! Do you want to view your cart now?");
       if (goToCart) {
         router.push('/keranjang');
-
-      const responseData = await response.json();
-      console.log('API Response:', responseData);
-
-      const userId = responseData.data.user.id;
-
-      if (!userId) {
-        throw new Error('User ID not found in response');
       }
-      
-
-      return userId;
     } catch (error) {
       console.error("Error adding to cart:", error);
       if (error instanceof Error && error.message.includes("Failed to get user information")) {
@@ -194,55 +207,11 @@ const DetailProduk = () => {
       setIsAddingToCart(false);
     }
   };
-  
-  const handleDecrease = () => {
-    if (quantity > 1) {
-      setQuantity((prev) => prev - 1);
-      console.error('Error getting user ID:', error);
-      throw new Error('Failed to get user information');
-    }
-  };
-
-  const handleAddToCart = async () => {
-    if (product) {
-      try {
-        const userId = await getCurrentUserId();
-        const subtotal = product.harga * quantity;
-
-        const response = await fetch('/api/keranjang', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            id_barang: parseInt(product.id),
-            id_user: userId,
-            jumlah: quantity,
-            subtotal,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to add to cart');
-        }
-
-        setToastMessage(`${quantity} unit produk \"${product.nama}\" berhasil ditambahkan ke keranjang!`);
-        setShowToast(true);
-        setQuantity(1);
-      } catch (err) {
-        console.error("Error adding to cart:", err);
-        setToastMessage("Gagal menambahkan produk ke keranjang. Silakan coba lagi.");
-        setShowToast(true);
-      }
-    }
-  };
 
   // Format and validate dates
   const minEndDate = new Date(rentalStartDate);
   minEndDate.setDate(minEndDate.getDate() + 1);
   
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -419,33 +388,24 @@ const DetailProduk = () => {
               className="bg-gray-400 text-white font-bold py-3 px-6 rounded-lg w-full cursor-not-allowed flex items-center justify-center"
               disabled
             >
-              {!availabilityInfo 
-                ? <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Memuat ketersediaan...
-                  </>
-                : <>
-                    <XCircle className="h-5 w-5 mr-2" />
-                    Tidak tersedia untuk tanggal yang dipilih
-                  </>
-              }
-          <ProfileCompletionCheck
-            onComplete={handleAddToCart}
-            onCancel={() => console.log("User cancelled adding to cart")}
-          >
-            <button
-              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg w-full"
-              disabled={product?.stok <= 0}
-            >
-              {product?.stok > 0 ? "Masukkan Keranjang" : "Stok Habis"}
+              {!availabilityInfo ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Memuat ketersediaan...
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-5 w-5 mr-2" />
+                  Tidak tersedia untuk tanggal yang dipilih
+                </>
+              )}
             </button>
           )}
         </div>
       </div>
 
-      {showToast && (
+        <ToastNotifikasi message={toastMessage} show={showToast} onClose={() => { setShowToast(false); setToastMessage(""); }} />
         <ToastNotifikasi message={toastMessage} show={showToast} onClose={() => setShowToast(false)} />
-      )}
     </div>
   );
 };
