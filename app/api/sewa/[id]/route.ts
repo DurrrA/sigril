@@ -105,3 +105,24 @@ export async function GET(
     );
   }
 }
+
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  const { status } = await request.json();
+  const id = parseInt(params.id);
+
+  if (!["pending", "confirmed", "cancelled"].includes(status)) {
+    return NextResponse.json({ success: false, message: "Status tidak valid" }, { status: 400 });
+  }
+
+  try {
+    const updated = await prisma.sewa_req.update({
+      where: { id },
+      data: { status },
+    });
+
+    return NextResponse.json({ success: true, status: updated.status });
+  } catch (error) {
+    console.error("Update gagal:", error);
+    return NextResponse.json({ success: false, message: "Gagal update" }, { status: 500 });
+  }
+}

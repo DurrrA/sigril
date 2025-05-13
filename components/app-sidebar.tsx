@@ -10,6 +10,7 @@ import {
   PackageIcon,
   SearchIcon,
   SettingsIcon,
+  ListIcon,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -65,7 +66,7 @@ const data = {
     {
       title: "Kategori",
       url: "/admin/kategori",
-  
+      icon: ListIcon,
     },
   ],
   NavSecondary: [
