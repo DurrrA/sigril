@@ -225,7 +225,10 @@ export default function PaymentPage() {
           payment_method: paymentMethod,
           items: rentalItems.map(item => ({
             id_barang: item.barangId,
-            jumlah: item.initialQuantity || 1
+            jumlah: item.initialQuantity,
+            price: item.price,
+            subtotal: item.subtotal,
+            name: item.name,
           }))
         })
       });

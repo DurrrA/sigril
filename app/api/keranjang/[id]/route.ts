@@ -97,57 +97,30 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 export async function DELETE(
-    request: NextRequest,
-    context : { params: { id: string } }
-  ) {
-    try {
-      const session = await getServerSession(authConfig);
-      
-      if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      
-      // Correctly access params.id as a string and convert to number
-      const id = Number(context.params.id);
-      
-      if (isNaN(id)) {
-        return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-      }
-  
-      // Check if cart item exists and belongs to current user
-      const cartItem = await prisma.keranjang.findUnique({
-        where: { id: id }
-      });
-  
-      if (!cartItem) {
-        return NextResponse.json({ error: "Cart item not found" }, { status: 404 });
-      }
-  
-      // Verify ownership
-      const user = await prisma.user.findUnique({
-        where: { email: session.user?.email ?? "" }
-      });
-  
-      if (!user || cartItem.id_user !== user.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-      }
-  
-      // Delete the cart item
-      await prisma.keranjang.delete({
-        where: { id: id }
-      });
-  
-      return NextResponse.json(
-        { message: "Item removed from cart" },
-        { status: 200 }
-      );
-    } catch (error) {
-      console.error("Error deleting cart item:", error);
-      return NextResponse.json(
-        { error: "Failed to remove item from cart" },
-        { status: 500 }
-      );
-    }
-  }
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Correctly access params.id as a string and convert to number
+    const id = Number(params.id);
 
-  
+    if (isNaN(id)) {
+      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    }
+
+    // Delete the item
+    const deletedItem = await prisma.keranjang.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({
+      message: "Item deleted successfully",
+      data: deletedItem
+    });
+  } catch (error) {
+    console.error("Error deleting item:", error);
+    return NextResponse.json({ 
+      error: "Failed to delete item" 
+    }, { status: 500 });
+  }
+}

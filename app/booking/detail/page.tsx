@@ -32,6 +32,7 @@ export default function BookingDetailsPage() {
     phone: "",
     email: "",
     address: "",
+    date_of_birth: "",
     isLoading: true,
   })
 
@@ -85,6 +86,7 @@ export default function BookingDetailsPage() {
             name: userData.data.user.fullname || userData.data.user.username || "",
             phone: userData.data.user.no_telp || "", // Check the actual field name
             email: userData.data.user.email || "",
+            date_of_birth: userData.data.user.date_of_birth,
             address: userData.data.user.alamat || "", // Check the actual field name
             isLoading: false
           });
@@ -125,8 +127,8 @@ export default function BookingDetailsPage() {
       formData.append("fullName", userData.name);
       formData.append("phone", userData.phone);
       formData.append("address", userData.address);
-      // We need to provide username since it's required by your backend
-      formData.append("username", userData.name.toLowerCase().replace(/\s+/g, '_'));
+     
+      formData.append("username", userData.name);
   
       // Send FormData without Content-Type header (browser will set it automatically)
       await fetch('/api/me', {

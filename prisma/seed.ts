@@ -13,13 +13,16 @@ async function main() {
 
   // 2) Tags & Categories
   const tagNames = ['Adventure', 'Tutorial', 'Review', 'News']
-  const tags = await Promise.all(tagNames.map(nama => prisma.tags.create({ data: { nama } })))
+  const tags = await Promise.all(
+    tagNames.map(nama => prisma.tags.create({ data: { nama } }))
+  )
 
   const kategoriNames = ['Grill', 'Tent', 'Backpack']
   const kategoris = await Promise.all(
     kategoriNames.map(nama => prisma.kategori.create({ data: { nama } }))
   )
 
+  // 3) Create an admin user
   const adminPassword = "admin123"
   const hashedPassword = await bcrypt.hash(adminPassword, 10)
   
@@ -34,7 +37,8 @@ async function main() {
     },
   })
   console.log(`Admin user created: ${adminUser.username}`)
-  // 3) Users
+  
+  // 4) Generate some regular users
   const users = await Promise.all(
     Array.from({ length: 10 }).map(() =>
       prisma.user.create({
@@ -50,121 +54,92 @@ async function main() {
     )
   )
 
-  // 4) Barang
+  // 5) Create some barang
   const barangData = [
-    { nama: 'Large Grill',       foto: 'grill.jpg',      harga: 200_000, harga_pinalti_per_jam: 60_000, stok: 5,  kategori_id: kategoris[0].id, deskripsi: 'A large grill for outdoor cooking' },
-    { nama: 'Small Tent',        foto: 'tent.jpg',       harga:  50_000, harga_pinalti_per_jam:100_000, stok: 10, kategori_id: kategoris[1].id, deskripsi: 'A small tent for camping' },
-    { nama: 'Hiking Backpack',   foto: 'backpack.jpg',   harga:  30_000, harga_pinalti_per_jam: 40_000, stok: 20, kategori_id: kategoris[2].id, deskripsi: 'A durable hiking backpack' },
+    { nama: 'Large Grill',     foto: 'grill.jpg',    harga: 200_000, harga_pinalti_per_jam: 60_000, stok: 5,  kategori_id: kategoris[0].id, deskripsi: 'A large grill for outdoor cooking' },
+    { nama: 'Small Tent',      foto: 'tent.jpg',     harga: 50_000,  harga_pinalti_per_jam:100_000, stok: 10, kategori_id: kategoris[1].id, deskripsi: 'A small tent for camping' },
+    { nama: 'Hiking Backpack', foto: 'backpack.jpg', harga: 30_000,  harga_pinalti_per_jam: 40_000, stok: 20, kategori_id: kategoris[2].id, deskripsi: 'A durable hiking backpack' },
   ]
   const barangs = await Promise.all(barangData.map(b => prisma.barang.create({ data: b })))
 
-  // 5) Rental requests with updated status values
-  const sewaReqs = await Promise.all(
-    Array.from({ length: 5 }).map(async () => {
-      const user  = faker.helpers.arrayElement(users)
-      const start = faker.date.recent({ days: 10 })
-      const end   = new Date(start.getTime() + faker.number.int({ min: 1, max: 7 }) * 86400000) // 1-7 days
+  // 6) Create several random transactions & sewa_req tied together
+  const paymentImages = ['payment.jpeg', 'receipt.jpg', 'transfer.png']
 
-      // Calculate if it should have an actual return date
-      const status = faker.helpers.arrayElement(['pending', 'confirmed', 'active', 'completed', 'cancelled'])
-      const actualReturnDate = status === 'completed' ? 
-        new Date(end.getTime() + faker.number.int({ min: -24, max: 48 }) * 3600000) // ±2 days from end date
+  for (let i = 0; i < 5; i++) {
+    const user = faker.helpers.arrayElement(users)
+    const start = faker.date.recent({ days: 10 })
+    const end = new Date(
+      start.getTime() + faker.number.int({ min: 1, max: 7 }) * 86400000 // add 1-7 days
+    )
+
+    // Choose a random status and maybe create an actual return date
+    const status = faker.helpers.arrayElement(['pending', 'confirmed', 'active', 'completed', 'cancelled'])
+    const actualReturnDate =
+      status === 'completed'
+        ? new Date(end.getTime() + faker.number.int({ min: -24, max: 48 }) * 3600000) // ±2 days from end date
         : null
 
-      return prisma.sewa_req.create({
-        data: {
-          id_user:    user.id,
-          start_date: start,
-          end_date:   end,
-          status:     status,
-          dikembalikan_pada: status === 'completed' ? actualReturnDate : null,
-          penalties_applied: status === 'completed' && faker.datatype.boolean(),
-          has_been_inspected: status === 'completed',
-          payment_status: status === 'pending' ? 'unpaid' : 'paid',
-          total_amount: faker.number.float({ min: 50000, max: 500000, fractionDigits: 2 }),
-          sewa_items: {
-            create: Array.from({ length: faker.number.int({ min: 1, max: 3 }) }).map(() => {
-              const item = faker.helpers.arrayElement(barangs)
-              const qty  = faker.number.int({ min: 1, max: 2 })
-              return {
-                id_barang:   item.id,
-                jumlah:      qty,
-                harga_total: item.harga * qty,
-              }
-            }),
-          },
-        },
-      })
-    })
-  )
-  const paymentImages = [
-    'payment.jpeg'
-  ]
-
-  // 6) Transaksi (sum of sewa_items)
-  await Promise.all(
-    sewaReqs.map(async (r) => {
-      const agg = await prisma.sewa_items.aggregate({
-        where: { id_sewa_req: r.id },
-        _sum:   { harga_total: true },
-      })
-      await prisma.transaksi.create({
-        data: {
-          id_user:          r.id_user,
-          total_pembayaran: agg._sum.harga_total || 0,
-          tanggal_transaksi: new Date(),
-          status:           'PAID',
-          bukti_pembayaran: faker.helpers.arrayElement(paymentImages)
-        },
-      })
-    })
-  )
-
-  // 7) Keranjang - UPDATED to include rental dates
-  await Promise.all(
-    Array.from({ length: 5 }).map(() => {
-      const user = faker.helpers.arrayElement(users)
+    // Create some items for this rental
+    const selectedItems = Array.from({ length: faker.number.int({ min: 1, max: 3 }) }).map(() => {
       const item = faker.helpers.arrayElement(barangs)
-      const qty  = faker.number.int({ min: 1, max: 3 })
-      
-      // Generate rental dates for cart items
-      const startDate = faker.date.soon({ days: 7 })
-      const endDate = new Date(startDate.getTime() + faker.number.int({ min: 1, max: 7 }) * 86400000) // 1-7 days
-      const rentalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / 86400000)
-      
-      return prisma.keranjang.create({
-        data: {
-          id_user:   user.id,
-          id_barang: item.id,
-          jumlah:    qty,
-          subtotal:  item.harga * qty * rentalDays, // Adjusted for rental days
-          start_date: startDate,
-          end_date: endDate,
-          rental_days: rentalDays
-        },
-      })
+      const qty = faker.number.int({ min: 1, max: 2 })
+      return {
+        id_barang: item.id,
+        jumlah: qty,
+        harga_total: item.harga * qty,
+      }
     })
-  )
 
-  // 8) Penalti - UPDATED with new fields
-  await Promise.all(
-    sewaReqs
-      .filter(r => r.status === 'completed' && r.penalties_applied)
-      .map(async (r) => {
-        // pick one of its items
-        const si = await prisma.sewa_items.findFirst({ where: { id_sewa_req: r.id } })
-        if (!si) return
-        const item = await prisma.barang.findUnique({ where: { id: si.id_barang } })
-        if (!item) return
+    // Calculate total amount
+    const totalAmount = selectedItems.reduce((sum, item) => sum + item.harga_total, 0)
 
+    // Create transaction first
+    const transaksi = await prisma.transaksi.create({
+      data: {
+        id_user: user.id,
+        // If schema requires id_sewa_req, you can set it later after sewa_req is created
+        total_pembayaran: totalAmount,
+        tanggal_transaksi: new Date(),
+        status: status === 'pending' ? 'UNPAID' : 'PAID',
+        bukti_pembayaran: faker.helpers.arrayElement(paymentImages),
+        payment_method: faker.helpers.arrayElement(['transfer', 'cash', 'e-wallet']),
+      }
+    })
+
+    // Create the sewa_req referencing the transaction
+    const sewaReq = await prisma.sewa_req.create({
+      data: {
+        id_user: user.id,
+        id_transaksi: transaksi.id, // tie sewa_req to the transaction
+        start_date: start,
+        end_date: end,
+        status: status,
+        dikembalikan_pada: status === 'completed' ? actualReturnDate : null,
+        penalties_applied: status === 'completed' && faker.datatype.boolean(),
+        has_been_inspected: status === 'completed',
+        payment_status: status === 'pending' ? 'unpaid' : 'paid',
+        total_amount: totalAmount,
+        sewa_items: {
+          create: selectedItems,
+        },
+      },
+    })
+
+    // Create penalties if applicable
+    if (status === 'completed' && sewaReq.penalties_applied) {
+      // Pick one of the sewa items to charge a penalty
+      const rentalItem = faker.helpers.arrayElement(selectedItems)
+      const item = await prisma.barang.findUnique({ where: { id: rentalItem.id_barang } })
+      
+      if (item) {
         const hoursLate = faker.number.int({ min: 1, max: 5 })
         const penalty = hoursLate * item.harga_pinalti_per_jam
         
-        return prisma.penalti.create({
+        await prisma.penalti.create({
           data: {
             id_barang: item.id,
-            id_user: r.id_user,
-            id_sewa: r.id, // Link to rental request
+            id_user: user.id,
+            id_sewa: sewaReq.id,
             total_bayar: penalty,
             alasan: faker.helpers.arrayElement([
               'Late return',
@@ -175,37 +150,64 @@ async function main() {
             status: faker.helpers.arrayElement(['unpaid', 'paid']),
           },
         })
+      }
+    }
+  }
+
+  // 7) Keranjang - with rental dates
+  await Promise.all(
+    Array.from({ length: 5 }).map(() => {
+      const user = faker.helpers.arrayElement(users)
+      const item = faker.helpers.arrayElement(barangs)
+      const qty = faker.number.int({ min: 1, max: 3 })
+
+      // Generate a start/end for the cart item
+      const startDate = faker.date.soon({ days: 7 })
+      const endDate = new Date(startDate.getTime() + faker.number.int({ min: 1, max: 7 }) * 86400000)
+      const rentalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / 86400000)
+
+      return prisma.keranjang.create({
+        data: {
+          id_user: user.id,
+          id_barang: item.id,
+          jumlah: qty,
+          subtotal: item.harga * qty * rentalDays,
+          start_date: startDate,
+          end_date: endDate,
+          rental_days: rentalDays,
+        },
       })
+    })
   )
 
-  // 9) Reviews
+  // 8) Reviews
   await Promise.all(
     Array.from({ length: 10 }).map(() => {
       const user = faker.helpers.arrayElement(users)
       const item = faker.helpers.arrayElement(barangs)
       return prisma.review.create({
         data: {
-          id_user:   user.id,
+          id_user: user.id,
           id_barang: item.id,
-          rating:    faker.number.int({ min: 1, max: 5 }),
-          komentar:  faker.lorem.sentence(),
+          rating: faker.number.int({ min: 1, max: 5 }),
+          komentar: faker.lorem.sentence(),
           createdAt: faker.date.recent(),
         },
       })
     })
   )
 
-  // 10) Artikel & Artikel_Comment
+  // 9) Artikel & Artikel_Comment
   const artikels = await Promise.all(
     Array.from({ length: 5 }).map(() =>
       prisma.artikel.create({
         data: {
-          judul:        faker.lorem.words(3),
-          konten:       faker.lorem.paragraphs(2),
-          foto:         'artikel.jpg',
-          id_tags:      faker.helpers.arrayElement(tags).id,
+          judul: faker.lorem.words(3),
+          konten: faker.lorem.paragraphs(2),
+          foto: 'artikel.jpg',
+          id_tags: faker.helpers.arrayElement(tags).id,
           is_published: faker.datatype.boolean(),
-          publishAt:    new Date(),
+          publishAt: new Date(),
         },
       })
     )
@@ -216,7 +218,7 @@ async function main() {
       prisma.artikel_comment.create({
         data: {
           id_artikel: art.id,
-          id_user:    faker.helpers.arrayElement(users).id,
+          id_user: faker.helpers.arrayElement(users).id,
           komen_teks: faker.lorem.sentence(),
         },
       })
