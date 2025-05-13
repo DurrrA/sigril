@@ -214,10 +214,6 @@ export default function PagePenyewaan() {
     if (selectedFilter === "status" && filterValue) {
       filterMatch = data.status === filterValue;
     }
-    if (selectedFilter === "bulan" && filterValue) {
-      const bulan = data.tanggal.mulai.split("-")[1];
-      filterMatch = bulan === filterValue;
-    }
 
     return keywordMatch && filterMatch;
   });
@@ -267,7 +263,6 @@ export default function PagePenyewaan() {
                       <SelectContent>
                         <SelectItem value="all">Semua</SelectItem>
                         <SelectItem value="status">Status</SelectItem>
-                        <SelectItem value="bulan">Bulan</SelectItem>
                       </SelectContent>
                     </Select>
 
@@ -286,30 +281,6 @@ export default function PagePenyewaan() {
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="confirmed">Confirmed</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-
-                    {selectedFilter === "bulan" && (
-                      <Select
-                        onValueChange={(value) => {
-                          setFilterValue(value);
-                          setCurrentPage(1);
-                        }}
-                        value={filterValue}
-                      >
-                        <SelectTrigger className="w-[150px]">
-                          <SelectValue placeholder="Pilih Bulan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 12 }).map((_, i) => {
-                            const bulan = (i + 1).toString().padStart(2, "0");
-                            return (
-                              <SelectItem key={bulan} value={bulan}>
-                                {new Date(0, i).toLocaleString("id-ID", { month: "long" })}
-                              </SelectItem>
-                            );
-                          })}
                         </SelectContent>
                       </Select>
                     )}
