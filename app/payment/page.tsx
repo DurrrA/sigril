@@ -215,11 +215,10 @@ export default function PaymentPage() {
         body: JSON.stringify({
           id_user: userId,
           total_pembayaran: totalAmount,    // Add the missing required field
-          status: paymentMethod === "cod" ? "pending" : "pending",  // Add the missing required field
+          status: paymentMethod === "cod" ? "Ditempat" : "pending",  // Add the missing required field
           tanggal_transaksi: new Date().toISOString(),
           bukti_pembayaran: paymentProofUrl || "",
           
-          // Additional data for rental items
           start_date: earliestStart.toISOString(),
           end_date: latestEnd.toISOString(),
           payment_method: paymentMethod,

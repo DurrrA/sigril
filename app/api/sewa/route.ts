@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import {  NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
@@ -13,7 +13,7 @@ type SewaWithRelasi = Prisma.sewa_reqGetPayload<{
   };
 }>;
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const sewaList: SewaWithRelasi[] = await prisma.sewa_req.findMany({
       include: {

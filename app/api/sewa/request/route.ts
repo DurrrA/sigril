@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -53,5 +53,23 @@ export async function POST(req: Request) {
       { error: "Failed to create rental request" },
       { status: 500 }
     );
+  }
+}
+
+export async function GET(
+  request: NextRequest
+) {
+  const { searchParams } = new URL(request.url);
+  const transactionId = searchParams.get("transactionId");
+  console.log("Transaction ID:", transactionId);
+  if (transactionId) {
+    const sewaReq = await prisma.sewa_req.findFirst({
+      where: { id_transaksi: Number(transactionId) },
+      include: { sewa_items: { include: { barang: true } } }
+    });
+    if (!sewaReq) {
+      return NextResponse.json({ error: "Sewa request not found" }, { status: 404 });
+    }
+    return NextResponse.json({ data: sewaReq }, { status: 200 });
   }
 }

@@ -229,7 +229,7 @@ export async function requireAdmin(): Promise<AuthResult> {
     where: { email: session?.user?.email ?? undefined },
   });
   
-  if (user?.role_id !== 2) { 
+  if (user?.role_id !== 1) { 
     return {
       isAuthenticated: true,
       isAuthorized: false,
