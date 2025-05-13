@@ -1,7 +1,6 @@
-"use client"
+"use client";
 
-import { AppSidebar } from "@/components/app-sidebar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Table,
   TableBody,
@@ -28,7 +27,15 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext, PaginationLink } from "@/components/ui/pagination";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationLink,
+} from "@/components/ui/pagination";
+import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import {
   Select,
@@ -40,93 +47,193 @@ import {
 import { Input } from "@/components/ui/input";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-
-const dummyPeminjaman = [
-  {
-    id: 1,
-    user: "Andi",
-    barang: ["Capit BBQ", "Alat Grill"],
-    tanggal: {
-      mulai: "2025-04-20",
-      selesai: "2025-04-22",
-    },
-    jam: "09:00 WIB",
-    total: 24000,
-    status: "Disetujui",
-  },
-  {
-    id: 2,
-    user: "Ujang",
-    barang: ["air", "Kesehatan"],
-    tanggal: {
-      mulai: "2025-04-21",
-      selesai: "2025-04-22",
-    },
-    jam: "09:00 WIB",
-    total: 24000,
-    status: "Menunggu",
-  },
-];
+import { toast } from "sonner";
 
 function StatusBadge({ status }: { status: string }) {
   const statusColorMap: Record<string, string> = {
-    Dibatalkan: "bg-red-200 text-red-800",
-    Menunggu: "bg-gray-200 text-gray-800",
-    Disetujui: "bg-green-200 text-green-800",
+    cancelled: "bg-red-200 text-red-800",
+    pending: "bg-gray-200 text-gray-800",
+    confirmed: "bg-green-200 text-green-800",
   };
+
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
   return (
     <Badge className={statusColorMap[status] || "bg-muted text-muted-foreground"}>
-      {status}
+      {capitalize(status)}
     </Badge>
   );
 }
 
+type PeminjamanData = {
+  id: number;
+  user: string;
+  barang: string[];
+  tanggal: {
+    mulai: string;
+    selesai: string;
+  };
+  total: number;
+  status: string;
+};
+
+type SewaDetailItem = {
+  id: number;
+  name: string;
+  quantity: number;
+  price: number;
+  subtotal: number;
+};
+
+type SewaDetail = {
+  id: number;
+  start_date: string;
+  end_date: string;
+  status: string;
+  user: {
+    fullname: string;
+    email: string;
+    phone: string;
+    address: string;
+  };
+  items: SewaDetailItem[];
+  totalAmount: number;
+  paymentStatus: string;
+  createdAt: string;
+};
+
+type ApiSewaListItem = {
+  id: number;
+  start_date: string;
+  end_date: string;
+  status: "pending" | "confirmed" | "cancelled";
+  user: {
+    username: string;
+    email: string;
+    phone: string;
+    address: string;
+  };
+  items: {
+    id: number;
+    name: string;
+    quantity: number;
+    price: number;
+    subtotal: number;
+  }[];
+  totalAmount: number;
+  paymentStatus: string;
+  createdAt: string;
+};
+
+
 export default function PagePenyewaan() {
+  const [peminjamanData, setPeminjamanData] = useState<PeminjamanData[]>([]);
+  const [detailData, setDetailData] = useState<SewaDetail | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedData, setSelectedData] = useState<typeof dummyPeminjaman[0] | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("");
   const [filterValue, setFilterValue] = useState("");
 
-  const filteredData = dummyPeminjaman.filter((data) => {
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch("/api/sewa");
+        const json: { success: boolean; data: ApiSewaListItem[] } = await res.json();
+        if (!json.success) throw new Error("Gagal mengambil data");
+
+        const data: ApiSewaListItem[] = json.data.sort((a, b) => b.id - a.id);
+        const mapped: PeminjamanData[] = data.map((item) => ({
+          id: item.id,
+          user: item.user.username || "Tidak diketahui",
+          barang: item.items.map((i) => i.name),
+          tanggal: {
+            mulai: item.start_date.split("T")[0],
+            selesai: item.end_date.split("T")[0],
+          },
+          total: item.totalAmount,
+          status: item.status,
+        }));
+        setPeminjamanData(mapped);
+      } catch (error) {
+        console.error("Fetch error:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+
+  const fetchDetail = async (id: number) => {
+    try {
+      const res = await fetch(`/api/sewa/${id}`, {
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (json.success) {
+        setDetailData(json.data);
+        setOpenDialog(true);
+      } else {
+      console.error("Detail fetch failed:", json);
+      }
+    } catch (error) {
+      console.error("Gagal fetch detail:", error);
+    }
+  };
+
+
+  const updateStatus = async (id: number, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/sewa/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Gagal update status");
+      const updated = await res.json();
+      setPeminjamanData((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, status: updated.status } : item
+        )
+      );
+      toast.success(`Status berhasil diubah menjadi ${updated.status}`);
+    } catch (err) {
+      console.error("Update status error:", err);
+      toast.error("Gagal mengubah status");
+    }
+  };
+
+  const filteredData = peminjamanData.filter((data) => {
     const keywordMatch =
       data.user.toLowerCase().includes(searchKeyword.toLowerCase()) ||
       data.barang.join(", ").toLowerCase().includes(searchKeyword.toLowerCase()) ||
       data.status.toLowerCase().includes(searchKeyword.toLowerCase());
-  
+
     let filterMatch = true;
-  
     if (selectedFilter === "status" && filterValue) {
-      filterMatch = data.status.toLowerCase() === filterValue.toLowerCase();
+      filterMatch = data.status === filterValue;
     }
-  
     if (selectedFilter === "bulan" && filterValue) {
-      const bulan = data.tanggal.mulai.split("-")[1]; // Ambil bulan dari tgl
+      const bulan = data.tanggal.mulai.split("-")[1];
       filterMatch = bulan === filterValue;
     }
-  
+
     return keywordMatch && filterMatch;
   });
-   
-  
+
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const currentData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const currentData = filteredData.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
+  const handleRowClick = (data: PeminjamanData) => {
+    fetchDetail(data.id); // Ambil data dari API detail
   };
 
-  const handleRowClick = (data: typeof dummyPeminjaman[0]) => {
-    setSelectedData(data);
-    setOpenDialog(true);
-  };
 
-  const isRowClick = (e: React.MouseEvent) => {
+  const isRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
     const ignoreTags = ["BUTTON", "svg", "path"];
     const target = e.target as HTMLElement;
     return !ignoreTags.includes(target.tagName);
@@ -135,26 +242,22 @@ export default function PagePenyewaan() {
   return (
     <SidebarProvider>
       <AppSidebar variant="inset" />
-      <SidebarInset>
+      <SidebarInset className="bg-white rounded-l-xl">
         <SiteHeader />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <Tabs defaultValue="outline" className="flex w-full flex-col justify-start gap-6">
-                <TabsContent
-                  value="outline"
-                  className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
-                >
+                <TabsContent value="outline" className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6">
                   <h1 className="text-2xl font-bold">Manajemen Penyewaan</h1>
 
                   {/* Filter bar */}
                   <div className="flex justify-end gap-2 items-center">
-                    {/* Dropdown Kategori Filter */}
                     <Select
                       value={selectedFilter}
                       onValueChange={(value) => {
                         setSelectedFilter(value);
-                        setFilterValue(""); // Reset value filter saat kategori diganti
+                        setFilterValue("");
                         setCurrentPage(1);
                       }}
                     >
@@ -168,8 +271,6 @@ export default function PagePenyewaan() {
                       </SelectContent>
                     </Select>
 
-
-                    {/* Filter value berdasarkan kategori */}
                     {selectedFilter === "status" && (
                       <Select
                         onValueChange={(value) => {
@@ -182,9 +283,9 @@ export default function PagePenyewaan() {
                           <SelectValue placeholder="Pilih Status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Menunggu">Menunggu</SelectItem>
-                          <SelectItem value="Disetujui">Disetujui</SelectItem>
-                          <SelectItem value="Dibatalkan">Dibatalkan</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="confirmed">Confirmed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -201,23 +302,18 @@ export default function PagePenyewaan() {
                           <SelectValue placeholder="Pilih Bulan" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="01">Januari</SelectItem>
-                          <SelectItem value="02">Februari</SelectItem>
-                          <SelectItem value="03">Maret</SelectItem>
-                          <SelectItem value="04">April</SelectItem>
-                          <SelectItem value="05">Mei</SelectItem>
-                          <SelectItem value="06">Juni</SelectItem>
-                          <SelectItem value="07">Juli</SelectItem>
-                          <SelectItem value="08">Agustus</SelectItem>
-                          <SelectItem value="09">September</SelectItem>
-                          <SelectItem value="10">Oktober</SelectItem>
-                          <SelectItem value="11">November</SelectItem>
-                          <SelectItem value="12">Desember</SelectItem>
+                          {Array.from({ length: 12 }).map((_, i) => {
+                            const bulan = (i + 1).toString().padStart(2, "0");
+                            return (
+                              <SelectItem key={bulan} value={bulan}>
+                                {new Date(0, i).toLocaleString("id-ID", { month: "long" })}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     )}
 
-                    {/* Search input */}
                     <Input
                       placeholder="Cari nama atau barang..."
                       value={searchKeyword}
@@ -229,19 +325,16 @@ export default function PagePenyewaan() {
                     />
                   </div>
 
-
-
                   {/* Table */}
                   <div className="rounded-lg border overflow-auto">
                     <Table>
-                      <TableHeader className="sticky top-0 z-10 bg-[#3528AB] text-white [&_th]:text-white">
+                      <TableHeader className="bg-[#3528AB] text-whitesticky top-0 z-10 bg-[#3528AB] text-white [&_th]:text-white">
                         <TableRow>
                           <TableHead>No</TableHead>
                           <TableHead>Penyewa</TableHead>
                           <TableHead>Barang</TableHead>
                           <TableHead>Tgl Sewa</TableHead>
                           <TableHead>Tgl Kembali</TableHead>
-                          <TableHead>Jam</TableHead>
                           <TableHead>Total</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="text-center">Aksi</TableHead>
@@ -263,40 +356,48 @@ export default function PagePenyewaan() {
                             <TableCell>{data.barang.join(", ")}</TableCell>
                             <TableCell>{data.tanggal.mulai}</TableCell>
                             <TableCell>{data.tanggal.selesai}</TableCell>
-                            <TableCell>{data.jam}</TableCell>
                             <TableCell>Rp{data.total.toLocaleString()}</TableCell>
                             <TableCell><StatusBadge status={data.status} /></TableCell>
                             <TableCell className="text-center">
-                              <div className="flex justify-center items-center gap-1">
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" size="sm">Batalkan</Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Yakin ingin membatalkan?</AlertDialogTitle>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Batal</AlertDialogCancel>
-                                      <AlertDialogAction className="bg-red-500 hover:bg-red-600">Ya, Batalkan</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="default" size="sm" className="text-white bg-blue-500">Konfirmasi</Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Yakin ingin konfirmasi?</AlertDialogTitle>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Batal</AlertDialogCancel>
-                                      <AlertDialogAction className="bg-red-500 hover:bg-red-600">Ya, Konfirmasi</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
+                              {data.status === "pending" ? (
+                                <div className="flex justify-center gap-1">
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="default" size="sm" className="text-white bg-red-500 hover:bg-red-800">Batalkan</Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Yakin ingin membatalkan?</AlertDialogTitle>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => updateStatus(data.id, "cancelled")} className="text-white bg-red-500 hover:bg-red-800">
+                                          Ya, Batalkan
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="default" size="sm" className="text-white bg-blue-500 hover:bg-blue-800">Konfirmasi</Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Yakin ingin konfirmasi?</AlertDialogTitle>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => updateStatus(data.id, "confirmed")} className="text-white bg-blue-500 hover:bg-blue-800">
+                                          Ya, Konfirmasi
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              ) : (
+                                <span className="text-gray-500 italic">Pesanan selesai</span>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -305,57 +406,53 @@ export default function PagePenyewaan() {
                   </div>
 
                   {/* Pagination */}
-                  <div className="mt-4 flex justify-end">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm whitespace-nowrap">Baris per Halaman</span>
-                      <Select
-                        value={itemsPerPage.toString()}
-                        onValueChange={(value) => {
-                          setItemsPerPage(Number(value));
-                          setCurrentPage(1);
-                        }}
-                      >
-                        <SelectTrigger className="w-[70px] h-8">
-                          <SelectValue placeholder="Jumlah" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="10">10</SelectItem>
-                          <SelectItem value="20">20</SelectItem>
-                          <SelectItem value="30">30</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      <span className="text-sm whitespace-nowrap ml-4 mr-4">
-                        Halaman {currentPage} dari {totalPages}
-                      </span>
-
-                      <Pagination>
-                        <PaginationContent>
-                          <PaginationItem>
-                            <PaginationPrevious
-                              onClick={() => handlePageChange(currentPage - 1)}
-                              className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                            />
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm whitespace-nowrap">Baris per Halaman</span>
+                    <Select
+                      value={itemsPerPage.toString()}
+                      onValueChange={(value) => {
+                        setItemsPerPage(Number(value));
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-[70px] h-8">
+                        <SelectValue placeholder="Jumlah" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="30">30</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm whitespace-nowrap mx-4">
+                          Halaman {currentPage} dari {Math.max(1, totalPages)}
+                    </span>
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={() => setCurrentPage(currentPage - 1)}
+                            className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                        {Array.from({ length: totalPages }).map((_, i) => (
+                          <PaginationItem key={i}>
+                            <PaginationLink
+                              isActive={currentPage === i + 1}
+                              onClick={() => setCurrentPage(i + 1)}
+                            >
+                              {i + 1}
+                            </PaginationLink>
                           </PaginationItem>
-                          {Array.from({ length: totalPages }).map((_, i) => (
-                            <PaginationItem key={i}>
-                              <PaginationLink
-                                isActive={currentPage === i + 1}
-                                onClick={() => handlePageChange(i + 1)}
-                              >
-                                {i + 1}
-                              </PaginationLink>
-                            </PaginationItem>
-                          ))}
-                          <PaginationItem>
-                            <PaginationNext
-                              onClick={() => handlePageChange(currentPage + 1)}
-                              className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                            />
-                          </PaginationItem>
-                        </PaginationContent>
-                      </Pagination>
-                    </div>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={() => setCurrentPage(currentPage + 1)}
+                            className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
                   </div>
 
                   {/* Dialog Detail */}
@@ -364,15 +461,25 @@ export default function PagePenyewaan() {
                       <DialogHeader>
                         <DialogTitle>Detail Penyewaan</DialogTitle>
                       </DialogHeader>
-                      {selectedData && (
+                      {detailData && (
                         <div className="space-y-2">
-                          <p><strong>Penyewa:</strong> {selectedData.user}</p>
-                          <p><strong>Barang:</strong> {selectedData.barang.join(", ")}</p>
-                          <p><strong>Tanggal Sewa:</strong> {selectedData.tanggal.mulai}</p>
-                          <p><strong>Tanggal Kembali:</strong> {selectedData.tanggal.selesai}</p>
-                          <p><strong>Jam:</strong> {selectedData.jam}</p>
-                          <p><strong>Total Bayar:</strong> Rp{selectedData.total.toLocaleString()}</p>
-                          <p><strong>Status:</strong> {selectedData.status}</p>
+                          <p><strong>Nama Penyewa:</strong> {detailData.user.fullname}</p>
+                          <p><strong>Email:</strong> {detailData.user.email}</p>
+                          <p><strong>No. Telepon:</strong> {detailData.user.phone}</p>
+                          <p><strong>Alamat:</strong> {detailData.user.address}</p>
+                          <p><strong>Tanggal Sewa:</strong> {detailData.start_date.split("T")[0]}</p>
+                          <p><strong>Tanggal Kembali:</strong> {detailData.end_date.split("T")[0]}</p>
+                          <p><strong>Status:</strong> {detailData.status}</p>
+                          <p><strong>Barang Disewa:</strong></p>
+                          <ul className="pl-4 list-disc">
+                            {detailData.items.map((item) => (
+                              <li key={item.id}>
+                                {item.name} - {item.quantity} x Rp{item.price.toLocaleString()} = Rp{item.subtotal.toLocaleString()}
+                              </li>
+                            ))}
+                          </ul>
+                          <p><strong>Total Bayar:</strong> Rp{detailData.totalAmount.toLocaleString()}</p>
+                          <p><strong>Status Pembayaran:</strong> {detailData.paymentStatus}</p>
                         </div>
                       )}
                     </DialogContent>

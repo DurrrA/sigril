@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import NewsCarousel from "../components/ui/NewsCarousel";
 import ProductCarousel from "../components/ui/ProductCarousel";
 import ReviewCarousel from "../components/ui/ReviewCarousel";
-
 interface NewsItem {
   id: number;
   title: string;
