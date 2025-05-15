@@ -65,70 +65,36 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-type PeminjamanData = {
+type AdminTransaksi = {
   id: number;
-  user: string;
-  barang: string[];
-  tanggal: {
-    mulai: string;
-    selesai: string;
-  };
-  total: number;
-  status: string;
-};
-
-type SewaDetailItem = {
-  id: number;
-  name: string;
-  quantity: number;
-  price: number;
-  subtotal: number;
-};
-
-type SewaDetail = {
-  id: number;
-  start_date: string;
-  end_date: string;
-  status: string;
-  user: {
-    fullname: string;
-    email: string;
-    phone: string;
-    address: string;
-  };
-  items: SewaDetailItem[];
-  totalAmount: number;
-  paymentStatus: string;
-  createdAt: string;
-};
-
-type ApiSewaListItem = {
-  id: number;
-  start_date: string;
-  end_date: string;
-  status: "pending" | "confirmed" | "cancelled";
   user: {
     username: string;
     email: string;
     phone: string;
     address: string;
   };
-  items: {
+  tanggal_transaksi: string;
+  status: string;
+  total: number;
+  sewa_req: null | {
     id: number;
-    name: string;
-    quantity: number;
-    price: number;
-    subtotal: number;
-  }[];
-  totalAmount: number;
-  paymentStatus: string;
-  createdAt: string;
+    start_date: string;
+    end_date: string;
+    status: string;
+    payment_status: string;
+    items: {
+      id: number;
+      name: string;
+      quantity: number;
+      price: number;
+      subtotal: number;
+    }[];
+  };
 };
 
-
 export default function PagePenyewaan() {
-  const [peminjamanData, setPeminjamanData] = useState<PeminjamanData[]>([]);
-  const [detailData, setDetailData] = useState<SewaDetail | null>(null);
+  const [transaksiData, setTransaksiData] = useState<AdminTransaksi[]>([]);
+  const [detailData, setDetailData] = useState<AdminTransaksi | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [openDialog, setOpenDialog] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -139,49 +105,16 @@ export default function PagePenyewaan() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("/api/sewa");
-        const json: { success: boolean; data: ApiSewaListItem[] } = await res.json();
+        const res = await fetch("/api/transaksi/admin");
+        const json = await res.json();
         if (!json.success) throw new Error("Gagal mengambil data");
-
-        const data: ApiSewaListItem[] = json.data.sort((a, b) => b.id - a.id);
-        const mapped: PeminjamanData[] = data.map((item) => ({
-          id: item.id,
-          user: item.user.username || "Tidak diketahui",
-          barang: item.items.map((i) => i.name),
-          tanggal: {
-            mulai: item.start_date.split("T")[0],
-            selesai: item.end_date.split("T")[0],
-          },
-          total: item.totalAmount,
-          status: item.status,
-        }));
-        setPeminjamanData(mapped);
+        setTransaksiData(json.data);
       } catch (error) {
         console.error("Fetch error:", error);
       }
     };
-
     fetchData();
   }, []);
-
-
-  const fetchDetail = async (id: number) => {
-    try {
-      const res = await fetch(`/api/sewa/${id}`, {
-        credentials: "include",
-      });
-      const json = await res.json();
-      if (json.success) {
-        setDetailData(json.data);
-        setOpenDialog(true);
-      } else {
-      console.error("Detail fetch failed:", json);
-      }
-    } catch (error) {
-      console.error("Gagal fetch detail:", error);
-    }
-  };
-
 
   const updateStatus = async (id: number, newStatus: string) => {
     try {
@@ -192,7 +125,7 @@ export default function PagePenyewaan() {
       });
       if (!res.ok) throw new Error("Gagal update status");
       const updated = await res.json();
-      setPeminjamanData((prev) =>
+      setTransaksiData((prev) =>
         prev.map((item) =>
           item.id === id ? { ...item, status: updated.status } : item
         )
@@ -204,17 +137,16 @@ export default function PagePenyewaan() {
     }
   };
 
-  const filteredData = peminjamanData.filter((data) => {
+  const filteredData = transaksiData.filter((data) => {
     const keywordMatch =
-      data.user.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      data.barang.join(", ").toLowerCase().includes(searchKeyword.toLowerCase()) ||
+      data.user.username.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+      (data.sewa_req?.items.map((i) => i.name).join(", ").toLowerCase() ?? "").includes(searchKeyword.toLowerCase()) ||
       data.status.toLowerCase().includes(searchKeyword.toLowerCase());
 
     let filterMatch = true;
     if (selectedFilter === "status" && filterValue) {
       filterMatch = data.status === filterValue;
     }
-
     return keywordMatch && filterMatch;
   });
 
@@ -224,10 +156,10 @@ export default function PagePenyewaan() {
     currentPage * itemsPerPage
   );
 
-  const handleRowClick = (data: PeminjamanData) => {
-    fetchDetail(data.id); // Ambil data dari API detail
+  const handleRowClick = (data: AdminTransaksi) => {
+    setDetailData(data);
+    setOpenDialog(true);
   };
-
 
   const isRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
     const ignoreTags = ["BUTTON", "svg", "path"];
@@ -303,11 +235,10 @@ export default function PagePenyewaan() {
                         <TableRow>
                           <TableHead>No</TableHead>
                           <TableHead>Penyewa</TableHead>
-                          <TableHead>Barang</TableHead>
-                          <TableHead>Tgl Sewa</TableHead>
-                          <TableHead>Tgl Kembali</TableHead>
-                          <TableHead>Total</TableHead>
+                          <TableHead>Tanggal Transaksi</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Total</TableHead>
+                          <TableHead>Barang Disewa</TableHead>
                           <TableHead className="text-center">Aksi</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -323,12 +254,23 @@ export default function PagePenyewaan() {
                             className="cursor-pointer hover:bg-gray-100"
                           >
                             <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                            <TableCell>{data.user}</TableCell>
-                            <TableCell>{data.barang.join(", ")}</TableCell>
-                            <TableCell>{data.tanggal.mulai}</TableCell>
-                            <TableCell>{data.tanggal.selesai}</TableCell>
-                            <TableCell>Rp{data.total.toLocaleString()}</TableCell>
+                            <TableCell>{data.user.username}</TableCell>
+                            <TableCell>{data.tanggal_transaksi.split("T")[0]}</TableCell>
                             <TableCell><StatusBadge status={data.status} /></TableCell>
+                            <TableCell>Rp{data.total.toLocaleString()}</TableCell>
+                            <TableCell>
+                              {data.sewa_req ? (
+                                <ul>
+                                  {data.sewa_req.items.map((item) => (
+                                    <li key={item.id}>
+                                      {item.name} ({item.quantity} x Rp{item.price.toLocaleString()}) = Rp{item.subtotal.toLocaleString()}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="italic text-gray-400">-</span>
+                              )}
+                            </TableCell>
                             <TableCell className="text-center">
                               {data.status === "pending" ? (
                                 <div className="flex justify-center gap-1">
@@ -396,7 +338,7 @@ export default function PagePenyewaan() {
                       </SelectContent>
                     </Select>
                     <span className="text-sm whitespace-nowrap mx-4">
-                          Halaman {currentPage} dari {Math.max(1, totalPages)}
+                      Halaman {currentPage} dari {Math.max(1, totalPages)}
                     </span>
                     <Pagination>
                       <PaginationContent>
@@ -434,23 +376,28 @@ export default function PagePenyewaan() {
                       </DialogHeader>
                       {detailData && (
                         <div className="space-y-2">
-                          <p><strong>Nama Penyewa:</strong> {detailData.user.fullname}</p>
+                          <p><strong>Nama Penyewa:</strong> {detailData.user.username}</p>
                           <p><strong>Email:</strong> {detailData.user.email}</p>
                           <p><strong>No. Telepon:</strong> {detailData.user.phone}</p>
                           <p><strong>Alamat:</strong> {detailData.user.address}</p>
-                          <p><strong>Tanggal Sewa:</strong> {detailData.start_date.split("T")[0]}</p>
-                          <p><strong>Tanggal Kembali:</strong> {detailData.end_date.split("T")[0]}</p>
+                          <p><strong>Tanggal Transaksi:</strong> {detailData.tanggal_transaksi.split("T")[0]}</p>
                           <p><strong>Status:</strong> {detailData.status}</p>
-                          <p><strong>Barang Disewa:</strong></p>
-                          <ul className="pl-4 list-disc">
-                            {detailData.items.map((item) => (
-                              <li key={item.id}>
-                                {item.name} - {item.quantity} x Rp{item.price.toLocaleString()} = Rp{item.subtotal.toLocaleString()}
-                              </li>
-                            ))}
-                          </ul>
-                          <p><strong>Total Bayar:</strong> Rp{detailData.totalAmount.toLocaleString()}</p>
-                          <p><strong>Status Pembayaran:</strong> {detailData.paymentStatus}</p>
+                          <p><strong>Total Bayar:</strong> Rp{detailData.total.toLocaleString()}</p>
+                          {detailData.sewa_req && (
+                            <>
+                              <p><strong>Periode Sewa:</strong> {detailData.sewa_req.start_date.split("T")[0]} - {detailData.sewa_req.end_date.split("T")[0]}</p>
+                              <p><strong>Status Sewa:</strong> {detailData.sewa_req.status}</p>
+                              <p><strong>Status Pembayaran:</strong> {detailData.sewa_req.payment_status}</p>
+                              <p><strong>Barang Disewa:</strong></p>
+                              <ul className="pl-4 list-disc">
+                                {detailData.sewa_req.items.map((item) => (
+                                  <li key={item.id}>
+                                    {item.name} - {item.quantity} x Rp{item.price.toLocaleString()} = Rp{item.subtotal.toLocaleString()}
+                                  </li>
+                                ))}
+                              </ul>
+                            </>
+                          )}
                         </div>
                       )}
                     </DialogContent>

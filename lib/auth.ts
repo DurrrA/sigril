@@ -82,7 +82,7 @@ export  const authConfig: NextAuthOptions = {
               password: "", 
               is_blacklisted: false,
               remember_token: null,
-              role_id: 1,
+              role_id: 2,
               no_telp: "",
               alamat: "",
               provider: "google", // Store the provider information
@@ -115,7 +115,7 @@ export  const authConfig: NextAuthOptions = {
               password: await bcrypt.hash(password, 10), // ✅ now it works!
               is_blacklisted: false,
               remember_token: null,
-              role_id: 1,
+              role_id: 2,
               no_telp: "",
               alamat: "",
             },
