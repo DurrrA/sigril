@@ -10,8 +10,13 @@ import { CalendarIcon, Loader2, User, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage
+} from "@/components/ui/form"
+import {
+  Card, CardContent, CardDescription, CardFooter,
+  CardHeader, CardTitle
+} from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -21,18 +26,10 @@ import { cn } from "@/lib/utils"
 import type { User as UserType } from "@/interfaces/user.interfaces"
 
 const formSchema = z.object({
-  username: z.string().min(3, {
-    message: "Username must be at least 3 characters.",
-  }),
-  phone: z.string().min(10, {
-    message: "Phone number must be at least 10 digits.",
-  }),
-  address: z.string().min(5, {
-    message: "Address must be at least 5 characters.",
-  }),
-  fullName: z.string().min(3, {
-    message: "Full name must be at least 3 characters.",
-  }),
+  username: z.string().min(3, { message: "Username must be at least 3 characters." }),
+  phone: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
+  address: z.string().min(5, { message: "Address must be at least 5 characters." }),
+  fullName: z.string().min(3, { message: "Full name must be at least 3 characters." }),
   dateOfBirth: z.date().optional(),
   avatar: z.union([z.string(), z.instanceof(File)]).optional(),
 })
@@ -55,23 +52,18 @@ export default function ProfilePage() {
     },
   })
 
-  // Fetch user data from the API
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         setIsLoading(true)
         const response = await fetch("/api/me")
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch user data")
-        }
+        if (!response.ok) throw new Error("Failed to fetch user data")
 
         const data = await response.json()
         const user = data.data.user
-
         setUserData(user)
 
-        // Set form values from API data
         form.reset({
           username: user.username || "",
           phone: user.no_telp || "",
@@ -82,10 +74,7 @@ export default function ProfilePage() {
         })
       } catch (err) {
         setError("Failed to load profile data")
-        console.error("Error fetching user data:", err)
-        toast("Error", {
-          description: "Failed to load profile data",
-        })
+        toast("Error", { description: "Failed to load profile data" })
       } finally {
         setIsLoading(false)
       }
@@ -98,7 +87,6 @@ export default function ProfilePage() {
     try {
       setIsSaving(true)
 
-      // Create FormData for file upload
       const formData = new FormData()
       formData.append("username", values.username)
       formData.append("phone", values.phone)
@@ -114,33 +102,25 @@ export default function ProfilePage() {
       const response = await fetch("/api/me", {
         method: "PUT",
         body: formData,
-        // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to update profile")
-      }
+      if (!response.ok) throw new Error("Failed to update profile")
 
       const updatedUser = await response.json()
-
-      // Update the local user data with the response
-      if (userData) {
-        setUserData({
-          ...userData,
-          username: updatedUser.username,
-          no_telp: updatedUser.phone,
-          alamat: updatedUser.address,
-          full_name: updatedUser.fullName,
-          date_of_birth: updatedUser.dateOfBirth,
-          avatar: updatedUser.avatar,
-        })
-      }
+      setUserData({
+        ...userData!,
+        username: updatedUser.username,
+        no_telp: updatedUser.phone,
+        alamat: updatedUser.address,
+        full_name: updatedUser.fullName,
+        date_of_birth: updatedUser.dateOfBirth,
+        avatar: updatedUser.avatar,
+      })
 
       toast("Profile Updated", {
         description: "Your profile has been updated successfully.",
       })
     } catch (err) {
-      console.error("Error updating profile:", err)
       toast("Error", {
         description: "Failed to update profile. Please try again.",
       })
@@ -162,7 +142,7 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className="container flex justify-center items-center min-h-screen py-10">
+      <div className="flex justify-center items-center min-h-screen p-4">
         <Alert variant="destructive" className="max-w-md">
           <Info className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
@@ -173,7 +153,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container flex justify-center items-center min-h-screen py-10">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <Card className="w-full max-w-3xl shadow-lg">
         <CardHeader className="text-center pb-6 border-b">
           <CardTitle className="text-2xl font-bold">Profile Settings</CardTitle>
@@ -219,7 +199,6 @@ export default function ProfilePage() {
                             onChange={(e) => {
                               const file = e.target.files?.[0]
                               if (file) {
-                                // Store the file in the form
                                 onChange(file)
                               }
                             }}
