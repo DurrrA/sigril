@@ -24,7 +24,7 @@ export async function GET() {
         penalti: true,
         review: true,
         sewa_req: true,
-      },
+      }
     });
     
     if (!user) {
@@ -48,6 +48,37 @@ export async function PUT(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const contentType = request.headers.get("content-type") || "";
+    
+    // Handle JSON request (for location updates)
+    if (contentType.includes("application/json")) {
+      const body = await request.json();
+      
+      // Check if this is a location update
+      if (body.lat !== undefined && body.lng !== undefined) {
+        // Update user location
+        const updatedUser = await prisma.user.update({
+          where: { email: session.user?.email ?? "" },
+          data: {
+            location_lat: body.lat,
+            location_lng: body.lng,
+            location_address: body.address || null
+          }
+        });
+        
+        return NextResponse.json({
+          success: true,
+          message: "Location updated successfully",
+          data: {
+            location: {
+              lat: updatedUser.location_lat,
+              lng: updatedUser.location_lng,
+              address: updatedUser.location_address
+            }
+          }
+        });
+      }
+    }
     
     // Process multipart form data
     const formData = await request.formData();
@@ -57,6 +88,9 @@ export async function PUT(request: NextRequest) {
     const fullName = formData.get("fullName") as string;
     const dateOfBirthStr = formData.get("dateOfBirth") as string | null;
     const avatarFile = formData.get("avatar") as File | null;
+    const locationLat = formData.get("locationLat") ? parseFloat(formData.get("locationLat") as string) : undefined;
+    const locationLng = formData.get("locationLng") ? parseFloat(formData.get("locationLng") as string) : undefined;
+    const locationAddress = formData.get("locationAddress") as string | null;
     
     // Handle avatar file upload
     let avatarPath = null;
@@ -86,18 +120,14 @@ export async function PUT(request: NextRequest) {
         full_name: fullName,
         date_of_birth: dateOfBirthStr ? new Date(dateOfBirthStr) : null,
         avatar: avatarPath || undefined, // Only update if a new file was uploaded
-      },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        no_telp: true,
-        alamat: true,
-        full_name: true,
-        date_of_birth: true,
-        avatar: true,
-      },
+        
+        // Add location fields if provided
+        location_lat: locationLat !== undefined ? locationLat : undefined,
+        location_lng: locationLng !== undefined ? locationLng : undefined,
+        location_address: locationAddress || undefined,
+      }
     });
+    
     
     return NextResponse.json({
       id: user.id,

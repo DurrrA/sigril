@@ -189,6 +189,8 @@ model user {
   provider        String?
   provider_id     String?
   updatedAt       DateTime?
+  location_lat   Float?
+  location_long  Float?
   artikel_comment artikel_comment[]
   keranjang       keranjang[]
   penalti         penalti[]

@@ -51,9 +51,9 @@ import { toast } from "sonner";
 
 function StatusBadge({ status }: { status: string }) {
   const statusColorMap: Record<string, string> = {
-    cancelled: "bg-red-200 text-red-800",
+    UNPAID: "bg-red-200 text-red-800",
     pending: "bg-gray-200 text-gray-800",
-    confirmed: "bg-green-200 text-green-800",
+    PAID: "bg-green-200 text-green-800",
   };
 
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

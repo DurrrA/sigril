@@ -40,19 +40,31 @@ async function main() {
   
   // 4) Generate some regular users
   const users = await Promise.all(
-    Array.from({ length: 10 }).map(() =>
-      prisma.user.create({
-        data: {
-          username: faker.internet.userName(),
-          password: faker.internet.password(),
-          email:    faker.internet.email(),
-          role_id:  userRole.id,
-          is_blacklisted: faker.datatype.boolean(),
-          createdAt: faker.date.past(),
-        },
-      })
-    )
-  )
+  Array.from({ length: 10 }).map(() => {
+    // Generate random coordinates in Indonesia
+    // Jakarta area coordinates with some randomness
+    const lat = -6.2088 + (Math.random() - 0.5) * 0.3;
+    const lng = 106.8456 + (Math.random() - 0.5) * 0.3;
+    
+    return prisma.user.create({
+      data: {
+        username: faker.internet.userName(),
+        password: faker.internet.password(),
+        email: faker.internet.email(),
+        role_id: userRole.id,
+        is_blacklisted: faker.datatype.boolean(),
+        createdAt: faker.date.past(),
+        no_telp: faker.phone.number(),
+        alamat: `${faker.location.streetAddress()}, ${faker.location.city()}, Indonesia`,
+        full_name: faker.person.fullName(),
+        ...(Math.random() > 0.3 ? {
+          location_lat: lat,
+          location_long: lng,
+        } : {})
+      },
+    });
+  })
+);
 
   // 5) Create some barang
   const barangData = [

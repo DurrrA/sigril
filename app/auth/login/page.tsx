@@ -17,35 +17,30 @@ const AuthPage = () => {
   const { status } = useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
-  
-  // Initialize based on URL parameter
+
   const [isLogin, setIsLogin] = useState(searchParams?.get('mode') !== 'register');
   const [signUpLoading, setSignUpLoading] = useState(false);
   const [signUpError, setSignUpError] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const modeParam = searchParams?.get('mode');
-  const mode = (modeParam === 'register' ? 'register' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
   const [formData, setFormData] = useState<SignUpData>({
     name: "",
     email: "",
     password: "",
   });
 
-  // Update form mode when URL changes
   useEffect(() => {
-    if (mode === 'register') {
+    const modeParam = searchParams?.get('mode');
+    if (modeParam === 'register') {
       setIsLogin(false);
     } else {
       setIsLogin(true);
     }
-  }, [mode]);
+  }, [searchParams]);
 
-  // Redirect if already logged in
   useEffect(() => {
     if (status === 'authenticated') {
       router.push('/');
@@ -69,7 +64,7 @@ const AuthPage = () => {
       setLoginError(res.error);
     } else {
       router.refresh();
-      router.push('/'); // Redirect to home after successful login
+      router.push('/');
     }
   };
 
@@ -81,7 +76,7 @@ const AuthPage = () => {
     e.preventDefault();
     setSignUpLoading(true);
     setSignUpError(null);
-    
+
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
@@ -89,14 +84,14 @@ const AuthPage = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: formData.name, 
+          username: formData.name,
           email: formData.email,
           password: formData.password,
         }),
       });
-  
+
       const data = await response.json();
-  
+
       if (!response.ok) {
         throw new Error(data.error || 'Registration failed');
       }
@@ -106,13 +101,13 @@ const AuthPage = () => {
         password: formData.password,
         redirect: false,
       });
-  
+
       if (loginRes?.error) {
         setIsLogin(true);
         alert('Account created successfully! Please log in.');
       } else {
         router.refresh();
-        router.push('/'); 
+        router.push('/');
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -122,7 +117,6 @@ const AuthPage = () => {
     }
   };
 
-  // If checking authentication status
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -133,8 +127,8 @@ const AuthPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#3528ab] px-4">
-      <div className="bg-white rounded-2xl shadow-lg flex flex-col md:flex-row w-full max-w-5xl overflow-hidden">
-        <div className="w-full md:w-1/2 p-10 relative">
+      <div className="bg-white rounded-2xl shadow-lg flex flex-col md:flex-row w-full max-w-4xl overflow-hidden">
+        <div className="w-full md:w-1/2 p-8 relative"> {/* Reduced padding */}
           <Link href="/">
             <Image
               src="/logo.png"
@@ -159,7 +153,7 @@ const AuthPage = () => {
                   {loginError}
                 </div>
               )}
-              
+
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Email</label>
                 <input
@@ -171,7 +165,7 @@ const AuthPage = () => {
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Password</label>
                 <div className="relative">
@@ -183,7 +177,7 @@ const AuthPage = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute top-2.5 right-3 h-5 w-5 text-gray-400"
@@ -192,7 +186,7 @@ const AuthPage = () => {
                   </button>
                 </div>
               </div>
-              
+
               <button
                 type="submit"
                 disabled={loading}
@@ -230,7 +224,7 @@ const AuthPage = () => {
 
               <p className="text-sm text-center mt-6 text-gray-600">
                 Don&apos;t have an account?{" "}
-                <Link 
+                <Link
                   href="/login?mode=register"
                   className="text-[#3528AB] font-semibold hover:underline cursor-pointer"
                 >
@@ -245,7 +239,7 @@ const AuthPage = () => {
                   {signUpError}
                 </div>
               )}
-              
+
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Your Name</label>
                 <input
@@ -331,7 +325,7 @@ const AuthPage = () => {
 
               <p className="text-sm text-center mt-6 text-gray-600">
                 Already have an account?{" "}
-                <Link 
+                <Link
                   href="/login"
                   className="text-[#3528AB] font-semibold hover:underline cursor-pointer"
                 >
@@ -342,7 +336,7 @@ const AuthPage = () => {
           )}
         </div>
 
-        <div className="hidden md:block md:w-1/2 relative h-[750px]">
+        <div className="hidden md:block md:w-1/2 relative h-[650px]"> {/* Adjusted height */}
           <Image
             src="/BBQU.png"
             alt="BBQ"
