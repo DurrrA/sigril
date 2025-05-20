@@ -1,7 +1,7 @@
 "use client"
 
 import { AppSidebar } from "@/components/app-sidebar";
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Table,
   TableBody,
@@ -30,26 +30,39 @@ import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 
-const dummyPeminjaman = [
-  {
-    id: 1,
-    user: "Andi",
-    tanggal: {
-      mulai: "2025-04-20",
-      selesai: "2025-04-22",
-    },
-    barang: ["Capit BBQ", "Alat Grill"],
-    total: 24000,
-    status: "Disetujui",
-  },
-]
+type AdminTransaksi = {
+  id: number;
+  user: {
+    username: string;
+    email: string;
+    phone: string;
+    address: string;
+  };
+  tanggal_transaksi: string;
+  status: string;
+  total: number;
+  sewa_req: null | {
+    id: number;
+    start_date: string;
+    end_date: string;
+    status: string;
+    payment_status: string;
+    items: {
+      id: number;
+      name: string;
+      quantity: number;
+      price: number;
+      subtotal: number;
+    }[];
+  };
+};
 
 function StatusBadge({ status }: { status: string }) {
   const statusColorMap: Record<string, string> = {
-    Menunggu: "bg-gray-200 text-gray-800",
-    Disetujui: "bg-green-200 text-green-800",
-    Dibatalkan: "bg-red-200 text-red-800",
-    Dikembalikan: "bg-blue-200 text-blue-800",
+    
+    cancelled: "bg-red-200 text-red-800",
+    confirmed: "bg-green-200 text-green-800",
+    returned: "bg-blue-200 text-blue-800",
   }
 
   return (
@@ -60,7 +73,8 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function PageRiwayat() {
-  const [selectedData, setSelectedData] = useState<typeof dummyPeminjaman[0] | null>(null)
+  const [riwayat, setRiwayat] = useState<AdminTransaksi[]>([]);
+  const [selectedData, setSelectedData] = useState<AdminTransaksi | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
@@ -68,28 +82,52 @@ export default function PageRiwayat() {
   const [selectedFilter, setSelectedFilter] = useState("");
   const [filterValue, setFilterValue] = useState("");
 
-  const filteredData = dummyPeminjaman.filter((data) => {
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch("/api/transaksi/admin");
+        const json = await res.json();
+        if (!json.success) throw new Error("Gagal mengambil data");
+
+        // Filter hanya transaksi yang sudah selesai atau dibatalkan
+        const filtered = json.data.filter((trx: AdminTransaksi) => {
+          const sewaStatus = trx.sewa_req?.status || "";
+          return ["returned", "cancelled", "confirmed"].includes(sewaStatus);
+        });
+
+        setRiwayat(filtered);
+      } catch (error) {
+        console.error("Fetch error:", error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const filteredData = riwayat.filter((data) => {
+    if (!data.sewa_req) return false;
+
     const keywordMatch =
-      data.user.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      data.barang.join(", ").toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      data.status.toLowerCase().includes(searchKeyword.toLowerCase());
-      
-  
+      data.user.username.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+      data.sewa_req.items.some(item =>
+        item.name.toLowerCase().includes(searchKeyword.toLowerCase())
+      ) ||
+      data.sewa_req.status.toLowerCase().includes(searchKeyword.toLowerCase());
+
     let filterMatch = true;
-  
+
     if (selectedFilter === "status" && filterValue) {
-      filterMatch = data.status.toLowerCase() === filterValue.toLowerCase();
+      filterMatch = data.sewa_req.status.toLowerCase() === filterValue.toLowerCase();
     }
-  
+
     if (selectedFilter === "bulan" && filterValue) {
-      const bulan = data.tanggal.mulai.split("-")[1]; // Ambil bulan dari tgl
+      const bulan = data.sewa_req.start_date.split("-")[1];
       filterMatch = bulan === filterValue;
     }
-  
+
     return keywordMatch && filterMatch;
   });
 
-  const handleRowClick = (data: typeof dummyPeminjaman[0]) => {
+  const handleRowClick = (data: AdminTransaksi) => {
     setSelectedData(data);
     setOpenDialog(true);
   }
@@ -123,7 +161,7 @@ export default function PageRiwayat() {
                         value="outline"
                         className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
                       >
-                          <h1 className="text-2xl font-bold">Manajemen Penyewaan</h1>
+                          <h1 className="text-2xl font-bold">Riwayat Penyewaan</h1>
 
                           {/* Filter bar */}
                           <div className="flex justify-end gap-2 items-center">
@@ -141,15 +179,14 @@ export default function PageRiwayat() {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="all">Semua</SelectItem>
-                                <SelectItem value="statussewa">Status Sewa</SelectItem>
-                                <SelectItem value="statusbayar">Status Bayar</SelectItem>
+                                <SelectItem value="status">Status</SelectItem>
                                 <SelectItem value="bulan">Bulan</SelectItem>
                               </SelectContent>
                             </Select>
 
 
                             {/* Filter value berdasarkan kategori */}
-                            {selectedFilter === "statussewa" && (
+                            {selectedFilter === "status" && (
                               <Select
                                 onValueChange={(value) => {
                                   setFilterValue(value);
@@ -161,10 +198,9 @@ export default function PageRiwayat() {
                                   <SelectValue placeholder="Pilih Status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="Menunggu">Menunggu</SelectItem>
-                                  <SelectItem value="Disetujui">Disetujui</SelectItem>
-                                  <SelectItem value="Dikembalikan">Dikembalikan</SelectItem>
-                                  <SelectItem value="Dibatalkan">Dibatalkan</SelectItem>
+                                  <SelectItem value="cancelled">cancelled</SelectItem>
+                                  <SelectItem value="returned">ceturned</SelectItem>
+                                  <SelectItem value="confirmed">confirmed</SelectItem>
                                 </SelectContent>
                               </Select>
                             )}
@@ -228,13 +264,13 @@ export default function PageRiwayat() {
                                   <TableRow key={data.id} onClick={() => handleRowClick(data)}
                                   className="cursor-pointer hover:bg-gray-200">
                                     <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                                    <TableCell>{data.user}</TableCell>
-                                    <TableCell>{data.tanggal.mulai}</TableCell>
-                                    <TableCell>{data.tanggal.selesai}</TableCell>
-                                    <TableCell>{data.barang.join(", ")}</TableCell>
+                                    <TableCell>{data.user.username}</TableCell>
+                                    <TableCell>{data.sewa_req?.start_date.split("T")[0]}</TableCell>
+                                    <TableCell>{data.sewa_req?.end_date.split("T")[0]}</TableCell>
+                                    <TableCell>{data.sewa_req?.items.map(item => item.name).join(", ")}</TableCell>
                                     <TableCell>Rp{data.total.toLocaleString()}</TableCell>
                                     <TableCell>
-                                      <StatusBadge status={data.status} />
+                                      <StatusBadge status={data.sewa_req?.status || "-"} />
                                     </TableCell>
                                     
                                   </TableRow>
@@ -260,7 +296,7 @@ export default function PageRiwayat() {
                                 <SelectContent>
                                   <SelectItem value="10">10</SelectItem>
                                   <SelectItem value="20">20</SelectItem>
-                                  <SelectItem value="20">30</SelectItem>
+                                  <SelectItem value="30">30</SelectItem>
                                 </SelectContent>
                               </Select>
 
@@ -305,14 +341,30 @@ export default function PageRiwayat() {
                               </DialogHeader>
                               {selectedData && (
                                 <div className="space-y-2">
-                                  <p><strong>Penyewa:</strong> {selectedData.user}</p>
-                                  <p><strong>Barang:</strong> {selectedData.barang.join(", ")}</p>
-                                  <p><strong>Tanggal Sewa:</strong> {selectedData.tanggal.mulai}</p>
-                                  <p><strong>Tanggal Kembali:</strong> {selectedData.tanggal.selesai}</p>
+                                  <p><strong>Nama Penyewa:</strong> {selectedData.user.username}</p>
+                                  <p><strong>Email:</strong> {selectedData.user.email}</p>
+                                  <p><strong>No. Telepon:</strong> {selectedData.user.phone}</p>
+                                  <p><strong>Alamat:</strong> {selectedData.user.address}</p>
+                                  <p><strong>Tanggal Transaksi:</strong> {selectedData.tanggal_transaksi.split("T")[0]}</p>
+                                  <p><strong>Status:</strong> {selectedData.status}</p>
                                   <p><strong>Total Bayar:</strong> Rp{selectedData.total.toLocaleString()}</p>
+                                  {selectedData.sewa_req && (
+                                    <>
+                                      <p><strong>Periode Sewa:</strong> {selectedData.sewa_req.start_date.split("T")[0]} - {selectedData.sewa_req.end_date.split("T")[0]}</p>
+                                      <p><strong>Status Sewa:</strong> {selectedData.sewa_req.status}</p>
+                                      <p><strong>Status Pembayaran:</strong> {selectedData.sewa_req.payment_status}</p>
+                                      <p><strong>Barang Disewa:</strong></p>
+                                      <ul className="pl-4 list-disc">
+                                        {selectedData.sewa_req.items.map((item) => (
+                                          <li key={item.id}>
+                                            {item.name} - {item.quantity} x Rp{item.price.toLocaleString()} = Rp{item.subtotal.toLocaleString()}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </>
+                                  )}
                                 </div>
                               )}
-                              
                             </DialogContent>
                           </Dialog>
                       </TabsContent>
