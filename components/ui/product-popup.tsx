@@ -1,15 +1,12 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
 import {
-  Calendar,
-  CheckCircle2,
   Info,
   Loader2,
   ShoppingBag,
-  ShoppingCart,
   X,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -46,7 +43,7 @@ const ProductPopup: React.FC<ProductPopupProps> = ({
     (rentalEndDate.getTime() - rentalStartDate.getTime()) / (1000 * 60 * 60 * 24)
   )
 
-  const priceNumber = parseInt(price.replace(/\D/g, ""))
+  const priceNumber = parseInt(price.replace(/\D/g, "")) || 0
   const totalPrice = priceNumber * quantity * rentalDays
   const stock = 10
 
@@ -72,13 +69,14 @@ const ProductPopup: React.FC<ProductPopupProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center overflow-y-auto py-10"
+      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full max-w-2xl mx-auto rounded-xl shadow-xl p-6 relative animate-fade-in"
+        className="bg-white w-full max-w-lg rounded-xl shadow-xl p-6 relative animate-fade-in overflow-y-auto max-h-[90vh]"
       >
+        {/* Tombol Tutup */}
         <button
           onClick={onClose}
           className="absolute top-3 right-3 text-gray-600 hover:text-red-600"
@@ -86,10 +84,12 @@ const ProductPopup: React.FC<ProductPopupProps> = ({
           <X size={20} />
         </button>
 
-        <h2 className="text-lg font-bold mb-2">{name}</h2>
+        {/* Informasi Produk */}
+        <h2 className="text-xl font-bold mb-2">{name}</h2>
         <p className="text-sm text-gray-600 mb-3">{description}</p>
         <p className="text-orange-500 font-semibold mb-4">{price} / hari</p>
 
+        {/* Jumlah */}
         <div className="flex items-center justify-between mb-3">
           <label className="text-sm font-medium">Jumlah:</label>
           <div className="flex items-center gap-2">
@@ -109,6 +109,7 @@ const ProductPopup: React.FC<ProductPopupProps> = ({
           </div>
         </div>
 
+        {/* Tanggal Mulai */}
         <div className="mb-3">
           <label className="block text-sm font-medium mb-1">Tanggal Mulai:</label>
           <DatePicker
@@ -119,6 +120,7 @@ const ProductPopup: React.FC<ProductPopupProps> = ({
           />
         </div>
 
+        {/* Tanggal Selesai */}
         <div className="mb-3">
           <label className="block text-sm font-medium mb-1">Tanggal Selesai:</label>
           <DatePicker
@@ -129,6 +131,7 @@ const ProductPopup: React.FC<ProductPopupProps> = ({
           />
         </div>
 
+        {/* Info Durasi */}
         <div className="text-sm mb-3 text-gray-600">
           <p>
             <Info className="inline-block w-4 h-4 mr-1 text-yellow-500" />
@@ -136,11 +139,12 @@ const ProductPopup: React.FC<ProductPopupProps> = ({
           </p>
         </div>
 
+        {/* Total Harga */}
         <p className="text-center font-semibold mb-4">
           Total: Rp {totalPrice.toLocaleString("id-ID")}
         </p>
 
-        {/* Tambah ke keranjang langsung */}
+        {/* Tombol Tambah ke Keranjang */}
         <button
           onClick={confirmAddToCart}
           disabled={isAddingToCart}
