@@ -1,70 +1,19 @@
+// Remove "use client" directive to make this a Server Component
+
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { JSX } from "react";
+import Link from "next/link";
+import { PrismaClient } from "@prisma/client";
 
-interface ArticleDetail {
-  title: string;
-  date: string;
-  category: string;
-  content: string[];
-  image: string;
-  related: RelatedArticle[];
-}
+// Initialize Prisma client
+const prisma = new PrismaClient();
 
-interface RelatedArticle {
-  id: string;
-  title: string;
-  date: string;
-  image: string;
-  excerpt: string;
-}
+// Interface for artikel comments
 
-const articles: Record<string, ArticleDetail> = {
-  "1": {
-    title: "Best Strategy to Achieve Profitable Harvest",
-    date: "October 23, 2023",
-    category: "Popular Articles",
-    image: "/images/harvest.jpg",
-    content: [
-      "Optimal strategies for achieving profitable harvests involve a comprehensive approach to farm management, selection of appropriate crop varieties, implementation of efficient practices.",
-      "Achieving a profitable harvest involves a series of strategic steps that include selecting plant varieties that suit environmental conditions, efficient crop management, use of appropriate agricultural technology, choosing optimal harvest times, as well as effective marketing and distribution strategies to increase the selling value of the harvest.",
-      "### 1. Selection of the Right Varieties and Seeds",
-      "Selecting the right varieties and seeds is a key step in achieving a successful harvest...",
-      "### 2. Efficient Crop Management",
-      "Efficient plant management involves regular plant maintenance...",
-      "### 3. Use of Agricultural Technology",
-      "Utilization of agricultural technology involves the use of various advanced tools...",
-      "### 4. Choosing the Right Harvest Time",
-      "Choosing the right harvest time involves careful monitoring of crop maturity..."
-    ],
-    related: [
-      {
-        id: "2",
-        title: "Achieving High Productivity from Your Own Home Garden.",
-        date: "October 23, 2023",
-        image: "/images/garden.jpg",
-        excerpt: "A practical guide to achieving satisfactory results from plants grown in your home.",
-      },
-      {
-        id: "3",
-        title: "The Best Guide to Planting Seeds with Optimal Results.",
-        date: "October 23, 2023",
-        image: "/images/planting.jpg",
-        excerpt: "Effective strategies and techniques to achieve healthy and productive plant growth.",
-      },
-      {
-        id: "4",
-        title: "Strategies for Caring for Your Garden More Efficiently and Productively.",
-        date: "October 23, 2023",
-        image: "/images/farm.jpg",
-        excerpt: "An approach that improves plant performance and makes garden management easier.",
-      },
-    ],
-  },
-};
+// (Removed unused ApiArticle interface)
 
 interface ArtikelDetailProps {
   params: {
@@ -72,70 +21,171 @@ interface ArtikelDetailProps {
   };
 }
 
-export default function ArtikelDetail({ params }: ArtikelDetailProps): JSX.Element {
-  const article = articles[params.id];
-  if (!article) return notFound();
+// Helper function to format date
+function formatDate(dateString: string): string {
+  const options: Intl.DateTimeFormatOptions = { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  };
+  return new Date(dateString).toLocaleDateString('en-US', options);
+}
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-12 space-y-8">
-        <div className="space-y-2  text-center">
-            <div className="flex justify-center items-center gap-4">
-                <Badge variant="outline" className="bg-lime-100 text-lime-800">
-                    {article.category}
-                </Badge>
-                <span className="text-sm text-muted-foreground">{article.date}</span>
-            </div>
-            <h1 className="text-4xl font-bold leading-tight mt-6 mb-4">{article.title}</h1>
-            <p className="text-muted-foreground text-lg mb-6">
-            Optimal strategies for achieving profitable harvests involve a comprehensive approach to farm management, selection of appropriate crop varieties, implementation of efficient practices.
-            </p>
+// Helper function to get excerpt
+function getExcerpt(content: string, maxLength = 120): string {
+  if (!content) return '';
+  const plainText = content.replace(/<[^>]*>?/gm, '');
+  if (plainText.length <= maxLength) return plainText;
+  return plainText.substring(0, maxLength).trim() + '...';
+}
+
+// Get normal image path
+const normalizeImage = (path: string | null) => {
+  if (!path) return '/placeholder-image.jpg'; // Fallback for missing images
+  return path.startsWith('/') || path.startsWith('http') ? path : `/${path}`;
+};
+
+export default async function ArtikelDetail({ params }: ArtikelDetailProps) {
+  try {
+    // Instead of using fetch, directly use Prisma to get data
+    const article = await prisma.artikel.findUnique({
+      where: {
+        id: parseInt(params.id),
+        is_deleted: false
+      },
+      include: {
+        tags: true,
+        artikel_comment: {
+          include: {
+            user: true
+          }
+        }
+      }
+    });
+    
+    if (!article) {
+      notFound();
+    }
+    
+    // Get related articles
+    const relatedArticles = await prisma.artikel.findMany({
+      where: {
+        is_deleted: false,
+        is_published: true,
+        id: {
+          not: parseInt(params.id)
+        },
+        // Optional: filter by same tag if the current article has a tag
+        ...(article.id_tags ? { id_tags: article.id_tags } : {})
+      },
+      include: {
+        tags: true
+      },
+      orderBy: {
+        publishAt: 'desc'
+      },
+      take: 3
+    });
+
+    // Parse content paragraphs
+    const contentParagraphs = article.konten
+      .split('\n')
+      .filter((p: string) => p.trim() !== "");
+
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12 space-y-8">
+        <div className="space-y-2 text-center">
+          <div className="flex justify-center items-center gap-4">
+            {article.tags && (
+              <Badge variant="outline" className="bg-lime-100 text-lime-800">
+                {article.tags.nama}
+              </Badge>
+            )}
+            <span className="text-sm text-muted-foreground">
+              {formatDate(article.publishAt?.toString() || article.createdAt.toString())}
+            </span>
+          </div>
+          <h1 className="text-4xl font-bold leading-tight mt-6 mb-4">
+            {article.judul}
+          </h1>
+          <p className="text-muted-foreground text-lg mb-6">
+            {getExcerpt(article.konten, 180)}
+          </p>
         </div>
 
-      <Image
-        src={article.image}
-        alt={article.title}
-        width={800}
-        height={400}
-        className="rounded-xl w-full h-auto object-cover"
-      />
+        {article.foto && (
+          <Image
+            src={normalizeImage(article.foto)}
+            alt={article.judul}
+            width={800}
+            height={400}
+            className="rounded-xl w-full h-auto object-cover"
+          />
+        )}
 
-      <div className="prose prose-neutral prose-lg max-w-none">
-        {article.content.map((paragraph, i) =>
-          paragraph.startsWith("### ") ? (
-            <h3 key={i}>{paragraph.replace("### ", "")}</h3>
-          ) : (
-            <p key={i}>{paragraph}</p>
-          )
+        <div className="prose prose-neutral prose-lg max-w-none">
+          {contentParagraphs.map((paragraph: string, i: number) =>
+            paragraph.startsWith("### ") ? (
+              <h3 key={i}>{paragraph.replace("### ", "")}</h3>
+            ) : paragraph.startsWith("## ") ? (
+              <h2 key={i}>{paragraph.replace("## ", "")}</h2>
+            ) : (
+              <p key={i}>{paragraph}</p>
+            )
+          )}
+        </div>
+
+        {relatedArticles.length > 0 && (
+          <section className="pt-12">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">Related Articles</h2>
+              <Link href="/artikel">
+                <Button variant="outline" size="sm">View all Articles</Button>
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {relatedArticles.map((rel) => (
+                <Link key={rel.id} href={`/artikel/${rel.id}`}>
+                  <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="p-0">
+                      {rel.foto && (
+                        <Image
+                          src={normalizeImage(rel.foto)}
+                          alt={rel.judul}
+                          width={400}
+                          height={200}
+                          className="rounded-t-lg w-full h-48 object-cover"
+                        />
+                      )}
+                      <div className="p-4 space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(rel.publishAt?.toString() || rel.createdAt.toString())}
+                        </p>
+                        <h3 className="font-semibold text-base">{rel.judul}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {getExcerpt(rel.konten)}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </section>
         )}
       </div>
-
-      <section className="pt-12">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Related Article</h2>
-          <Button variant="outline" size="sm">View all Articles</Button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {article.related.map((rel) => (
-            <Card key={rel.id} className="h-full">
-              <CardContent className="p-0">
-                <Image
-                  src={rel.image}
-                  alt={rel.title}
-                  width={400}
-                  height={200}
-                  className="rounded-t-lg w-full h-48 object-cover"
-                />
-                <div className="p-4 space-y-2">
-                  <p className="text-xs text-muted-foreground">{rel.date}</p>
-                  <h3 className="font-semibold text-base">{rel.title}</h3>
-                  <p className="text-sm text-muted-foreground">{rel.excerpt}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
+    );
+  } catch (error) {
+    console.error("Error rendering article:", error);
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+        <h2 className="text-2xl font-bold text-red-600">Error Loading Article</h2>
+        <p className="mt-4">{error instanceof Error ? error.message : "An unknown error occurred"}</p>
+        <Link href="/artikel">
+          <Button className="mt-6">Back to Articles</Button>
+        </Link>
+      </div>
+    );
+  }
 }
