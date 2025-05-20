@@ -8,6 +8,7 @@ const kategoriSchema = z.object({
   nama: z.string().min(1, "Name is required"),
 });
 
+// Fetch kategori berdasarkan ID
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authCheck = await requireAdmin();
   if (!authCheck.isAuthenticated || !authCheck.isAuthorized) {
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
+// Update kategori berdasarkan ID
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authCheck = await requireAdmin();
   if (!authCheck.isAuthenticated || !authCheck.isAuthorized) {
@@ -61,6 +63,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
+// Hapus kategori berdasarkan ID
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authCheck = await requireAdmin();
   if (!authCheck.isAuthenticated || !authCheck.isAuthorized) {

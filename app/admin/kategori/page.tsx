@@ -1,15 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PencilIcon, TrashIcon, PlusIcon, Loader2 } from "lucide-react";
+import {
+  PencilIcon,
+  TrashIcon,
+  PlusIcon,
+  Loader2,
+  InfoIcon,
+} from "lucide-react";
+
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+
 import {
   Dialog,
-  DialogContent,
   DialogTrigger,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogHeader,
+  DialogFooter,
 } from "@/components/ui/dialog";
+
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -21,6 +34,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,7 +50,6 @@ import { FormBuatKategori } from "./form-buat-kategori";
 import { FormEditKategori } from "./form-edit-kategori";
 import { Kategori } from "@/interfaces/kategori.interfaces";
 import { toast } from "sonner";
-import { DialogTitle } from "@radix-ui/react-dialog";
 
 export default function PageKategori() {
   const [kategoriList, setKategoriList] = useState<Kategori[]>([]);
@@ -47,20 +60,26 @@ export default function PageKategori() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedKategori, setSelectedKategori] = useState<Kategori | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
 
-  // Fetch categories from API
   useEffect(() => {
     fetchKategori();
   }, []);
 
   const fetchKategori = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/kategori");
       const data = await res.json();
+      
       if (!res.ok) {
-        throw new Error("Gagal memuat data kategori.");
+        throw new Error(data.message || "Gagal memuat data kategori");
       }
+      
       setKategoriList(data.data || []);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Gagal memuat data kategori.");
@@ -69,38 +88,63 @@ export default function PageKategori() {
     }
   };
 
-  // Handle Delete Category
-  const handleDelete = async () => {
-    if (!selectedId) return;
-
+  const checkKategoriBeforeDelete = async (kategoriId: number) => {
+    setSelectedId(kategoriId);
+    setDeleteError(null);
+    
     try {
-      const res = await fetch(`/api/kategori/${selectedId}`, { method: "DELETE" });
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 400) {
-          toast.error(data.message || "Kategori masih digunakan oleh barang.");
-        } else {
-          toast.error("Gagal menghapus kategori.");
-        }
-        return;
-      }
-
-      toast.success("Kategori berhasil dihapus.");
-      fetchKategori(); // Refresh the categories
-      setSelectedId(null); // Reset selectedId after deletion
+      // Optional: You could add an API endpoint to check if category can be deleted
+      // For now, we'll just show the confirmation dialog directly
+      setIsDeleteDialogOpen(true);
     } catch (error) {
-      toast.error("Terjadi kesalahan saat menghapus kategori.");
+      toast.error("Gagal memeriksa kategori");
     }
   };
 
-  // Handle Edit Category
+  const handleDelete = async () => {
+    if (!selectedId) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+    
+    try {
+      const res = await fetch(`/api/kategori/${selectedId}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setDeleteError(data.message || "Gagal menghapus kategori.");
+        
+        // If it's a 400 error (related to items), show error dialog
+        if (res.status === 400) {
+          setIsDeleteDialogOpen(false);
+          setIsErrorDialogOpen(true);
+          return;
+        }
+        
+        toast.error(data.message || "Gagal menghapus kategori.");
+        return;
+      }
+
+      toast.success("Kategori berhasil dihapus");
+      fetchKategori();
+      setSelectedId(null);
+      setIsDeleteDialogOpen(false);
+    } catch (error) {
+      setDeleteError("Terjadi kesalahan saat menghapus kategori.");
+      toast.error("Terjadi kesalahan saat menghapus kategori.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleEdit = (kategori: Kategori) => {
     setSelectedKategori(kategori);
     setIsEditOpen(true);
   };
 
-  // Filter categories based on search input
   const filteredKategori = kategoriList.filter((k) =>
     k.nama.toLowerCase().includes(search.toLowerCase())
   );
@@ -113,7 +157,6 @@ export default function PageKategori() {
         <main className="p-6 flex flex-col gap-6">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h1 className="text-2xl font-bold">Manajemen Kategori</h1>
-
             <div className="flex gap-2">
               <Input
                 placeholder="Cari kategori..."
@@ -129,6 +172,7 @@ export default function PageKategori() {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
+                  <DialogTitle>Tambah Kategori</DialogTitle>
                   <FormBuatKategori
                     onSubmitSuccess={() => {
                       setIsTambahOpen(false);
@@ -183,36 +227,13 @@ export default function PageKategori() {
                           >
                             <PencilIcon className="h-4 w-4" />
                           </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                size="icon"
-                                className="bg-red-500 hover:bg-red-600 text-white"
-                                onClick={() => setSelectedId(item.id)} // Set selected ID for deletion
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Konfirmasi Hapus
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Yakin ingin menghapus kategori ini?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-red-500 hover:bg-red-600 text-white"
-                                  onClick={handleDelete} // Execute delete when confirmed
-                                >
-                                  Hapus
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <Button
+                            size="icon"
+                            className="bg-red-500 hover:bg-red-600 text-white"
+                            onClick={() => checkKategoriBeforeDelete(item.id)}
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -222,20 +243,77 @@ export default function PageKategori() {
             </Table>
           </div>
 
+          {/* Dialog for editing */}
           <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-            <DialogTitle>
-              <DialogContent className="max-w-md">
-                {selectedKategori && (
-                  <FormEditKategori
-                    kategori={selectedKategori}
-                    onSuccess={() => {
-                      setIsEditOpen(false);
-                      fetchKategori();
-                    }}
-                  />
-                )}
-              </DialogContent>
-            </DialogTitle>
+            <DialogContent className="max-w-md">
+              <DialogTitle>Edit Kategori</DialogTitle>
+              {selectedKategori && (
+                <FormEditKategori
+                  kategori={selectedKategori}
+                  onSuccess={() => {
+                    setIsEditOpen(false);
+                    fetchKategori();
+                  }}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Alert Dialog for Delete Confirmation */}
+          <AlertDialog 
+            open={isDeleteDialogOpen} 
+            onOpenChange={setIsDeleteDialogOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Yakin ingin menghapus kategori ini?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-500 hover:bg-red-600 text-white"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Menghapus...
+                    </>
+                  ) : (
+                    "Hapus"
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Error Dialog for Delete Errors */}
+          <Dialog 
+            open={isErrorDialogOpen} 
+            onOpenChange={setIsErrorDialogOpen}
+          >
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-amber-600">
+                  <InfoIcon /> Tidak Dapat Menghapus Kategori
+                </DialogTitle>
+                <DialogDescription className="pt-2">
+                  {deleteError || "Kategori ini masih digunakan oleh barang. Silakan hapus atau pindahkan barang terkait terlebih dahulu."}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button 
+                  onClick={() => setIsErrorDialogOpen(false)}
+                  className="bg-[#3528AB] text-white hover:bg-[#2e2397]"
+                >
+                  Mengerti
+                </Button>
+              </DialogFooter>
+            </DialogContent>
           </Dialog>
         </main>
       </SidebarInset>
