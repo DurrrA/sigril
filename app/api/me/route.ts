@@ -61,8 +61,7 @@ export async function PUT(request: NextRequest) {
           where: { email: session.user?.email ?? "" },
           data: {
             location_lat: body.lat,
-            location_lng: body.lng,
-            location_address: body.address || null
+            location_long: body.lng
           }
         });
         
@@ -72,8 +71,7 @@ export async function PUT(request: NextRequest) {
           data: {
             location: {
               lat: updatedUser.location_lat,
-              lng: updatedUser.location_lng,
-              address: updatedUser.location_address
+              lng: updatedUser.location_long,
             }
           }
         });
@@ -88,10 +86,9 @@ export async function PUT(request: NextRequest) {
     const fullName = formData.get("fullName") as string;
     const dateOfBirthStr = formData.get("dateOfBirth") as string | null;
     const avatarFile = formData.get("avatar") as File | null;
-    const locationLat = formData.get("locationLat") ? parseFloat(formData.get("locationLat") as string) : undefined;
-    const locationLng = formData.get("locationLng") ? parseFloat(formData.get("locationLng") as string) : undefined;
-    const locationAddress = formData.get("locationAddress") as string | null;
-    
+    const locationLat = formData.get("location_lat") ? parseFloat(formData.get("location_lat") as string) : undefined;
+    const locationLong = formData.get("location_long") ? parseFloat(formData.get("location_long") as string) : undefined;
+
     // Handle avatar file upload
     let avatarPath = null;
     if (avatarFile) {
@@ -112,33 +109,32 @@ export async function PUT(request: NextRequest) {
     
     // Update user in database
     const user = await prisma.user.update({
-      where: { email: session.user?.email ?? "" },
-      data: {
-        username,
-        no_telp: phone,
-        alamat: address,
-        full_name: fullName,
-        date_of_birth: dateOfBirthStr ? new Date(dateOfBirthStr) : null,
-        avatar: avatarPath || undefined, // Only update if a new file was uploaded
-        
-        // Add location fields if provided
-        location_lat: locationLat !== undefined ? locationLat : undefined,
-        location_lng: locationLng !== undefined ? locationLng : undefined,
-        location_address: locationAddress || undefined,
-      }
-    });
+  where: { email: session.user?.email ?? "" },
+  data: {
+    username,
+    no_telp: phone,
+    alamat: address,
+    full_name: fullName,
+    date_of_birth: dateOfBirthStr ? new Date(dateOfBirthStr) : null,
+    avatar: avatarPath || undefined,
+    location_lat: locationLat,
+    location_long: locationLong,
+  }
+});
     
     
     return NextResponse.json({
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      phone: user.no_telp || "",
-      address: user.alamat || "",
-      fullName: user.full_name || "",
-      dateOfBirth: user.date_of_birth ? user.date_of_birth.toISOString() : null,
-      avatar: user.avatar || null,
-    });
+  id: user.id,
+  username: user.username,
+  email: user.email,
+  phone: user.no_telp || "",
+  address: user.alamat || "",
+  fullName: user.full_name || "",
+  dateOfBirth: user.date_of_birth ? user.date_of_birth.toISOString() : null,
+  avatar: user.avatar || null,
+  location_lat: user.location_lat,
+  location_long: user.location_long
+});
   } catch (error) {
     console.error("Error updating user profile:", error);
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });

@@ -29,20 +29,16 @@ interface RentalItem {
 export default function PaymentPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // State variables
   const [paymentMethod, setPaymentMethod] = useState<"qris" | "transfer" | "cod">("transfer");
   const [showQRCode, setShowQRCode] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [rentalItems, setRentalItems] = useState<RentalItem[]>([]);
   
-  // Payment proof related state
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
   
-  // Calculate total
   const totalPrice = rentalItems.reduce((total, item) => total + item.subtotal, 0);
 
   useEffect(() => {
@@ -160,14 +156,21 @@ export default function PaymentPage() {
       if (!userResponse.ok) {
         throw new Error("User authentication failed");
       }
-      
+      console.log("User response:", userResponse);
       const userData = await userResponse.json();
       const userId = userData.data.user.id;
       
       if (!userId) {
         throw new Error("User ID not found");
       }
-      
+    // Log full user object structure
+    console.log("Complete user data:", userData.data.user);
+    // Log location data specifically 
+    console.log("User location data:", {
+      lat: userData.data.user.lat || userData.data.user.location_lat,
+      long: userData.data.user.long || userData.data.user.location_long,
+      address: userData.data.user.address || userData.data.user.alamat
+    });
       // Get the earliest start date and latest end date for all items
       const earliestStart = new Date(Math.min(...rentalItems.map(item => 
         new Date(item.startDate).getTime())));

@@ -106,23 +106,60 @@ export async function GET(
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const { status } = await request.json();
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const body = await request.json();
+  const { status, updateTransaction } = body;
   const id = parseInt(params.id);
 
-  if (!["pending", "confirmed", "cancelled"].includes(status)) {
-    return NextResponse.json({ success: false, message: "Status tidak valid" }, { status: 400 });
+  if (!["pending", "confirmed", "cancelled", "active", "completed"].includes(status)) {
+    return NextResponse.json(
+      { success: false, message: "Status tidak valid" }, 
+      { status: 400 }
+    );
   }
 
   try {
-    const updated = await prisma.sewa_req.update({
-      where: { id },
-      data: { status },
+    // Use a transaction to ensure both updates succeed or fail together
+    const result = await prisma.$transaction(async (tx) => {
+      // Update the sewa_req record
+      const updated = await tx.sewa_req.update({
+        where: { id },
+        data: { status },
+        include: { 
+          transaksi: true, // Include the related transaction
+          sewa_items: true // Include rental items if needed
+        }
+      });
+
+      // If updateTransaction is true, also update the transaction record
+      if (updateTransaction && updated.id_transaksi) {
+        await tx.transaksi.update({
+          where: { id: updated.id_transaksi },
+          data: { 
+            status: status === "confirmed" ? "PAID" : 
+                  status === "cancelled" ? "FAILED" : 
+                  "UNPAID"
+          }
+        });
+      }
+
+      return updated;
     });
 
-    return NextResponse.json({ success: true, status: updated.status });
+    return NextResponse.json({ 
+      success: true, 
+      status: result.status,
+      message: "Berhasil mengupdate status"
+    });
   } catch (error) {
     console.error("Update gagal:", error);
-    return NextResponse.json({ success: false, message: "Gagal update" }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      message: "Gagal update",
+      error: String(error)
+    }, { status: 500 });
   }
 }

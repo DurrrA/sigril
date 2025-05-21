@@ -10,11 +10,11 @@ import { toast } from 'sonner';
 
 // Fix for Leaflet icon issues
 const icon = L.icon({
-  iconUrl: '/images/marker-icon.png',
-  shadowUrl: '/images/marker-shadow.png',
+  iconUrl: '/icons/marker-icon-2x.png',
+  shadowUrl: '/icons/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
+  popupAnchor: [1, -34],  
   shadowSize: [41, 41]
 });
 

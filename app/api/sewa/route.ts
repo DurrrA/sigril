@@ -42,10 +42,12 @@ export async function GET() {
       },
       items: sewa.sewa_items.map((item) => ({
         id: item.id,
+        id_barang: item.id_barang,
         name: item.barang.nama,
         quantity: item.jumlah,
         price: item.harga_total,
         subtotal: item.harga_total, // jika sudah dikalkulasi
+        harga_penalti_per_jam: item.barang.harga_pinalti_per_jam,
       })),
       totalAmount: sewa.total_amount ?? sewa.sewa_items.reduce((total, item) => total + item.harga_total, 0),
       paymentStatus: sewa.payment_status,

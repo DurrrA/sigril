@@ -3,10 +3,19 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Calendar, ArrowLeft, Loader2 } from "lucide-react"
+import { useMapEvents } from "react-leaflet"
 import Image from "next/image"
 import Link from "next/link"
 import { toast } from "sonner"
+import "leaflet/dist/leaflet.css"
+import dynamic from "next/dynamic"
 import { format } from "date-fns"
+import L from "leaflet"
+
+// Dynamically import react-leaflet components to avoid SSR issues
+const MapContainer = dynamic(() => import("react-leaflet").then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import("react-leaflet").then(mod => mod.TileLayer), { ssr: false });
+const Marker = dynamic(() => import("react-leaflet").then(mod => mod.Marker), { ssr: false });
 
 interface RentalItem {
   id: string;
@@ -21,6 +30,36 @@ interface RentalItem {
   subtotal: number;
 }
 
+const icon = L.icon({
+  iconUrl: '/icons/marker-icon-2x.png',
+  shadowUrl: '/icons/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],  
+  shadowSize: [41, 41]
+});
+
+// Helper component for picking location
+function LocationPicker({
+  lat,
+  long,
+  setLatLong,
+}: {
+  lat: string;
+  long: string;
+  setLatLong: (lat: string, long: string) => void;
+}) {
+  useMapEvents({ // plural, not singular
+    click(e) {
+      setLatLong(e.latlng.lat.toString(), e.latlng.lng.toString());
+    },
+  });
+
+  return lat && long ? (
+    <Marker position={[parseFloat(lat), parseFloat(long)]} icon={icon} />
+  ) : null;
+}
+
 export default function BookingDetailsPage() {
   const router = useRouter()
   const [rentalItems, setRentalItems] = useState<RentalItem[]>([])
@@ -32,7 +71,9 @@ export default function BookingDetailsPage() {
     phone: "",
     email: "",
     address: "",
-    date_of_birth: "",
+    lat: "",
+    long: "",
+    full_name: "",
     isLoading: true,
   })
 
@@ -70,34 +111,37 @@ export default function BookingDetailsPage() {
     }
 
     const loadUserData = async () => {
-      try {
-        const response = await fetch('/api/me', {
-          credentials: 'include'
-        })
+  try {
+    const response = await fetch('/api/me', {
+      credentials: 'include'
+    })
 
-        if (!response.ok) {
-          router.push('/login?redirect=/booking/details')
-          return
-        }
-
-        const userData = await response.json()
-        if (userData.data.user) {
-          setUserData({
-            name: userData.data.user.fullname || userData.data.user.username || "",
-            phone: userData.data.user.no_telp || "", // Check the actual field name
-            email: userData.data.user.email || "",
-            date_of_birth: userData.data.user.date_of_birth,
-            address: userData.data.user.alamat || "", // Check the actual field name
-            isLoading: false
-          });
-        }
-        console.log("User data from API:", userData.data.user);
-      } catch (error) {
-        console.error("Error loading user data:", error)
-        toast.error("Failed to load user information")
-        setUserData(prev => ({ ...prev, isLoading: false }))
-      }
+    if (!response.ok) {
+      router.push('/login?redirect=/booking/details')
+      return
     }
+
+    const userData = await response.json()
+    if (userData.data.user) {
+      setUserData({
+        full_name: userData.data.user.full_name || "",
+        name: userData.data.user.fullname || userData.data.user.username || "",
+        phone: userData.data.user.no_telp || "",
+        email: userData.data.user.email || "",
+        // Map from location_lat and location_long to lat/long in your state
+        lat: userData.data.user.location_lat || "",
+        long: userData.data.user.location_long || "",
+        address: userData.data.user.alamat || "",
+        isLoading: false
+      });
+    }
+    console.log("User data from API:", userData.data.user);
+  } catch (error) {
+    console.error("Error loading user data:", error)
+    toast.error("Failed to load user information")
+    setUserData(prev => ({ ...prev, isLoading: false }))
+  }
+}
 
     loadItemsFromSession()
   }, [router])
@@ -110,45 +154,68 @@ export default function BookingDetailsPage() {
     }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-  
-    // Basic validation
-    if (!userData.name || !userData.phone || !userData.email || !userData.address) {
-      toast.error("Please fill all required fields");
-      return;
-    }
-  
-    try {
-      setIsSubmitting(true);
-  
-      // Create FormData instead of JSON
-      const formData = new FormData();
-      formData.append("fullName", userData.name);
-      formData.append("phone", userData.phone);
-      formData.append("address", userData.address);
-     
-      formData.append("username", userData.name);
-  
-      // Send FormData without Content-Type header (browser will set it automatically)
-      await fetch('/api/me', {
-        method: 'PUT',
-        credentials: 'include',
-        body: formData
-      });
-  
-      // Store the address for the payment page
-      sessionStorage.setItem('userAddress', userData.address);
-      
-      // Continue to payment page
-      router.push('/payment');
-    } catch (error) {
-      console.error("Error saving user data:", error);
-      toast.error("Failed to save your details");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  // Basic validation
+  if (!userData.name || !userData.phone || !userData.email || !userData.address) {
+    toast.error("Please fill all required fields");
+    return;
+  }
+
+  try {
+    setIsSubmitting(true);
+
+    // Log what we're sending for debugging
+    console.log("Sending location data:", {
+      lat: userData.lat,
+      long: userData.long,
+      address: userData.address
+    });
+
+    // Create FormData instead of JSON
+    const formData = new FormData();
+    formData.append("fullName", userData.name);
+    formData.append("phone", userData.phone);
+    formData.append("address", userData.address);
+    
+    // Use the correct field names - location_lat and location_long
+    formData.append("location_lat", userData.lat); 
+    formData.append("location_long", userData.long);
+    formData.append("username", userData.full_name);
+    
+    // Send FormData without Content-Type header (browser will set it automatically)
+    const response = await fetch('/api/me', {
+      method: 'PUT',
+      credentials: 'include',
+      body: formData
+    });
+
+    // Log location data after sending
+    console.log("Location data sent to server:", {
+      location_lat: userData.lat,
+      location_long: userData.long,
+      address: userData.address
+    });
+
+    // Also log the response for debugging
+    const responseData = await response.json();
+    console.log("Server response:", responseData);
+
+    // Store the address for the payment page
+    sessionStorage.setItem('userAddress', userData.address);
+    sessionStorage.setItem('userLat', userData.lat);
+    sessionStorage.setItem('userLong', userData.long);
+    
+    // Continue to payment page
+    router.push('/payment');
+  } catch (error) {
+    console.error("Error saving user data:", error);
+    toast.error("Failed to save your details");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (isLoading || userData.isLoading) {
     return (
@@ -241,7 +308,7 @@ export default function BookingDetailsPage() {
                     placeholder="Masukkan alamat email"
                     className="w-full px-3 py-2 border rounded-md"
                     required
-                    readOnly={!!userData.email} // Make email read-only if it exists
+                    readOnly={!!userData.email}
                   />
                 </div>
               </div>
@@ -259,6 +326,33 @@ export default function BookingDetailsPage() {
                   className="w-full px-3 py-2 border rounded-md"
                   required
                 ></textarea>
+              </div>
+
+              {/* Leaflet Map for Lat/Long */}
+              <div>
+                <label className="font-medium block mb-2">Pilih Lokasi di Peta (klik untuk menandai)</label>
+                <div style={{ height: 300, width: "100%" }}>
+                  {typeof window !== "undefined" && MapContainer && TileLayer && Marker && (
+                    <MapContainer
+                      center={[
+                        userData.lat ? parseFloat(userData.lat) : -6.2,
+                        userData.long ? parseFloat(userData.long) : 106.8
+                      ]}
+                      zoom={13}
+                      style={{ height: "100%", width: "100%" }}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <LocationPicker
+                        lat={userData.lat}
+                        long={userData.long}
+                        setLatLong={(lat, long) => setUserData(prev => ({ ...prev, lat, long }))}
+                      />
+                    </MapContainer>
+                  )}
+                </div>
               </div>
 
               <div className="bg-yellow-50 p-4 rounded-md text-sm text-gray-700 border border-yellow-200">
