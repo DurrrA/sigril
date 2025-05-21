@@ -51,9 +51,9 @@ import { toast } from "sonner";
 
 function StatusBadge({ status }: { status: string }) {
   const statusColorMap: Record<string, string> = {
-    cancelled: "bg-red-200 text-red-800",
+    UNPAID: "bg-red-200 text-red-800",
     pending: "bg-gray-200 text-gray-800",
-    confirmed: "bg-green-200 text-green-800",
+    PAID: "bg-green-200 text-green-800",
   };
 
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -166,10 +166,6 @@ export default function PagePenyewaan() {
     if (selectedFilter === "status" && filterValue) {
       filterMatch = data.status === filterValue;
     }
-    if (selectedFilter === "bulan" && filterValue) {
-      const bulan = data.tanggal_transaksi.split("-")[1];
-      filterMatch = bulan === filterValue;
-    }
     return keywordMatch && filterMatch;
   });
 
@@ -218,7 +214,6 @@ export default function PagePenyewaan() {
                       <SelectContent>
                         <SelectItem value="all">Semua</SelectItem>
                         <SelectItem value="status">Status</SelectItem>
-                        <SelectItem value="bulan">Bulan</SelectItem>
                       </SelectContent>
                     </Select>
 
@@ -237,30 +232,6 @@ export default function PagePenyewaan() {
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="confirmed">Confirmed</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-
-                    {selectedFilter === "bulan" && (
-                      <Select
-                        onValueChange={(value) => {
-                          setFilterValue(value);
-                          setCurrentPage(1);
-                        }}
-                        value={filterValue}
-                      >
-                        <SelectTrigger className="w-[150px]">
-                          <SelectValue placeholder="Pilih Bulan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 12 }).map((_, i) => {
-                            const bulan = (i + 1).toString().padStart(2, "0");
-                            return (
-                              <SelectItem key={bulan} value={bulan}>
-                                {new Date(0, i).toLocaleString("id-ID", { month: "long" })}
-                              </SelectItem>
-                            );
-                          })}
                         </SelectContent>
                       </Select>
                     )}
