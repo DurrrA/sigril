@@ -48,6 +48,7 @@ import { Input } from "@/components/ui/input";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import Image from "next/image";
 
 function StatusBadge({ status }: { status: string }) {
   const statusColorMap: Record<string, string> = {
@@ -65,6 +66,61 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// Extend the Window interface to include viewPaymentImage
+declare global {
+  interface Window {
+    viewPaymentImage?: (imageUrl: string) => void;
+  }
+}
+
+function StandaloneImageViewer() {
+  const [imageToView, setImageToView] = useState<string | null>(null);
+  
+  // Make the component available globally
+  useEffect(() => {
+    // Expose the function to open images
+    window.viewPaymentImage = (imageUrl: string) => {
+      setImageToView(imageUrl);
+    };
+    
+    return () => {
+      delete window.viewPaymentImage;
+    };
+  }, []);
+  
+  if (!imageToView) return null;
+  
+  const fullImageUrl = imageToView.startsWith('http') 
+    ? imageToView 
+    : imageToView.startsWith('/') 
+      ? imageToView 
+      : `/${imageToView}`;
+  
+  return (
+    <Dialog open={!!imageToView} onOpenChange={() => setImageToView(null)}>
+      <DialogContent className="max-w-4xl p-1 bg-black/90 border-none">
+        <DialogHeader>
+          <DialogTitle className="sr-only">Bukti Pembayaran</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col items-center">
+          <div className="relative w-full h-[90vh]">
+            <Image 
+              src={fullImageUrl} 
+              alt="Payment Proof" 
+              fill 
+              className="object-contain"
+              onError={(e) => {
+                e.currentTarget.src = "/images/placeholder-payment.png";
+              }}
+            />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 type AdminTransaksi = {
   id: number;
   user: {
@@ -76,6 +132,7 @@ type AdminTransaksi = {
   tanggal_transaksi: string;
   status: string;
   total: number;
+  bukti_pembayaran: string;
   sewa_req: null | {
     id: number;
     start_date: string;
@@ -250,15 +307,18 @@ export default function PagePenyewaan() {
                   {/* Table */}
                   <div className="rounded-lg border overflow-auto">
                     <Table>
-                      <TableHeader className="bg-[#3528AB] text-whitesticky top-0 z-10 bg-[#3528AB] text-white [&_th]:text-white">
+                      <TableHeader className="bg-[#3528AB] text-white sticky top-0 z-10 [&_th]:text-white">
                         <TableRow>
-                          <TableHead>No</TableHead>
-                          <TableHead>Penyewa</TableHead>
-                          <TableHead>Tanggal Transaksi</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Total</TableHead>
-                          <TableHead>Barang Disewa</TableHead>
-                          <TableHead className="text-center">Aksi</TableHead>
+                          <>{/* Using fragments to eliminate whitespace */}
+                            <TableHead>No</TableHead>
+                            <TableHead>Penyewa</TableHead>
+                            <TableHead>Tanggal Transaksi</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Total</TableHead>
+                            <TableHead>Bukti Bayar</TableHead>
+                            <TableHead>Barang Disewa</TableHead>
+                            <TableHead className="text-center">Aksi</TableHead>
+                          </>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -277,6 +337,48 @@ export default function PagePenyewaan() {
                             <TableCell>{data.tanggal_transaksi.split("T")[0]}</TableCell>
                             <TableCell><StatusBadge status={data.status} /></TableCell>
                             <TableCell>Rp{data.total.toLocaleString()}</TableCell>
+                            <TableCell>
+                              {data.bukti_pembayaran ? (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="p-0 h-auto"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Prevent row click
+                                    
+                                    // Use the standalone image viewer instead of opening the dialog
+                                    const imageUrl = data.bukti_pembayaran.startsWith('http') 
+                                      ? data.bukti_pembayaran 
+                                      : data.bukti_pembayaran.startsWith('/') 
+                                        ? data.bukti_pembayaran 
+                                        : `/${data.bukti_pembayaran}`;
+                                        
+                                    // Call the global function to show the image
+                                    if (typeof window.viewPaymentImage === "function") {
+                                      window.viewPaymentImage(imageUrl);
+                                    }
+                                  }}
+                                >
+                                  <div className="relative w-10 h-10 rounded overflow-hidden border">
+                                    <Image 
+                                      src={data.bukti_pembayaran.startsWith('http') 
+                                        ? data.bukti_pembayaran 
+                                        : data.bukti_pembayaran.startsWith('/') 
+                                          ? data.bukti_pembayaran 
+                                          : `/${data.bukti_pembayaran}`} 
+                                      alt="Bukti Bayar" 
+                                      fill
+                                      className="object-cover"
+                                      onError={(e) => {
+                                        e.currentTarget.src = "/images/placeholder-payment.png";
+                                      }}
+                                    />
+                                  </div>
+                                </Button>
+                              ) : (
+                                <span className="text-gray-400 italic text-xs">Belum ada</span>
+                              )}
+                            </TableCell>
                             <TableCell>
                               {data.sewa_req ? (
                                 <ul>
@@ -389,21 +491,29 @@ export default function PagePenyewaan() {
 
                   {/* Dialog Detail */}
                   <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-                    <DialogContent>
+                    <DialogContent className="max-w-2xl">
                       <DialogHeader>
                         <DialogTitle>Detail Penyewaan</DialogTitle>
                       </DialogHeader>
                       {detailData && (
-                        <div className="space-y-2">
-                          <p><strong>Nama Penyewa:</strong> {detailData.user.username}</p>
-                          <p><strong>Email:</strong> {detailData.user.email}</p>
-                          <p><strong>No. Telepon:</strong> {detailData.user.phone}</p>
-                          <p><strong>Alamat:</strong> {detailData.user.address}</p>
-                          <p><strong>Tanggal Transaksi:</strong> {detailData.tanggal_transaksi.split("T")[0]}</p>
-                          <p><strong>Status:</strong> {detailData.status}</p>
-                          <p><strong>Total Bayar:</strong> Rp{detailData.total.toLocaleString()}</p>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <p><strong>Nama Penyewa:</strong> {detailData.user.username}</p>
+                              <p><strong>Email:</strong> {detailData.user.email}</p>
+                              <p><strong>No. Telepon:</strong> {detailData.user.phone}</p>
+                              <p><strong>Alamat:</strong> {detailData.user.address}</p>
+                              <p><strong>Tanggal Transaksi:</strong> {detailData.tanggal_transaksi.split("T")[0]}</p>
+                              <p><strong>Status:</strong> <StatusBadge status={detailData.status} /></p>
+                              <p><strong>Total Bayar:</strong> Rp{detailData.total.toLocaleString()}</p>
+                            </div>
+                            
+                            {/* Payment Proof Section */}
+                          </div>
+
                           {detailData.sewa_req && (
-                            <>
+                            <div className="border-t pt-4 mt-4">
+                              <h3 className="font-semibold text-md mb-2">Detail Sewa</h3>
                               <p><strong>Periode Sewa:</strong> {detailData.sewa_req.start_date.split("T")[0]} - {detailData.sewa_req.end_date.split("T")[0]}</p>
                               <p><strong>Status Sewa:</strong> {detailData.sewa_req.status}</p>
                               <p><strong>Status Pembayaran:</strong> {detailData.sewa_req.payment_status}</p>
@@ -415,7 +525,7 @@ export default function PagePenyewaan() {
                                   </li>
                                 ))}
                               </ul>
-                            </>
+                            </div>
                           )}
                         </div>
                       )}
@@ -427,6 +537,7 @@ export default function PagePenyewaan() {
           </div>
         </div>
       </SidebarInset>
+      <StandaloneImageViewer />
     </SidebarProvider>
   );
 }

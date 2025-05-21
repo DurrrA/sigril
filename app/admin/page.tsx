@@ -88,6 +88,36 @@ export default function Page() {
 
     fetchArticles()
   }, [])
+
+  useEffect(() => {
+  const fetchStats = async () => {
+    try {
+      setIsLoadingStats(true);
+      
+      // Make a real API call instead of using mock data
+      const response = await fetch('/api/transaksi/dashboard');
+      
+      if (!response.ok) {
+        throw new Error('Failed to load dashboard data');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setStats(result.data);
+      } else {
+        throw new Error(result.error || 'Unknown error occurred');
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+      // You could set an error state here if you want to display it
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+  
+  fetchStats();
+}, []);
   
   // Fetch dashboard stats
   useEffect(() => {
@@ -235,8 +265,8 @@ export default function Page() {
                       </Link>
                     </CardHeader>
                     <CardContent className="p-0">
-                      <div className="h-[300px]">
-                        <OrdersMap />
+                      <div className="h-[600px]">
+                        <OrdersMap height="500px"/>
                       </div>
                     </CardContent>
                   </Card>
@@ -245,7 +275,7 @@ export default function Page() {
                   <Card className="mt-4">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-xl font-semibold">Recent Orders</CardTitle>
-                      <Link href="/admin/transaksi">
+                      <Link href="/admin/penyewaan">
                         <Button variant="ghost" size="sm" className="gap-1 text-[#3528AB]">
                           <span>View All</span>
                           <ChevronRight className="h-4 w-4" />
@@ -253,9 +283,9 @@ export default function Page() {
                       </Link>
                     </CardHeader>
                     <CardContent>
-                      <div className="overflow-auto">
+                      <div className="overflow-auto max-h-[320px]">
                         <Table>
-                          <TableHeader>
+                          <TableHeader className="sticky top-0 bg-white z-10">
                             <TableRow>
                               <TableHead>Order</TableHead>
                               <TableHead>Customer</TableHead>
@@ -282,22 +312,8 @@ export default function Page() {
                               </TableRow>
                             ) : (
                               stats.recentOrders.map((order) => (
-                                <TableRow key={order.id}>
-                                  <TableCell>#{order.id}</TableCell>
-                                  <TableCell>{order.username}</TableCell>
-                                  <TableCell>
-                                    {format(new Date(order.date), 'dd MMM yyyy', { locale: id })}
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                      order.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                                      order.status === 'active' ? 'bg-blue-100 text-blue-800' : 
-                                      'bg-yellow-100 text-yellow-800'
-                                    }`}>
-                                      {order.status}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell>{formatCurrency(order.amount)}</TableCell>
+                                <TableRow key={order.id} className="hover:bg-slate-50">
+                                  {/* Row content */}
                                 </TableRow>
                               ))
                             )}

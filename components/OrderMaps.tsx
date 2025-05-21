@@ -45,7 +45,12 @@ interface Transaction {
   }>;
 }
 
-export default function OrdersMap() {
+interface OrdersMapProps {
+  height?: string;
+  className?: string;
+}
+
+export default function OrdersMap({ height = "600px", className = "" }: OrdersMapProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [addresses, setAddresses] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -135,7 +140,7 @@ export default function OrdersMap() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[600px] bg-gray-50 rounded-lg">
+      <div className={`flex items-center justify-center bg-gray-50 rounded-lg ${className}`} style={{ height }}>
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#3528AB]" />
           <p className="mt-2 text-gray-600">Loading order map...</p>
