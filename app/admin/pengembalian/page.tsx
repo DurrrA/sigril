@@ -76,6 +76,7 @@ interface PenaltyItem {
   amount: number;
   reason: string;
   applyPenalty: boolean;
+  penaltyRate: number;
 }
 
 // Define form values type without Zod
@@ -141,20 +142,20 @@ export default function PagePengembalian() {
     }
   });
 
-  const getItemPenaltyRate = (item: RentalItem): number => {
-    console.log(`Getting penalty rate for item:`, item);
-    
-    if (typeof item.harga_pinalti_per_jam === 'number' && !isNaN(item.harga_pinalti_per_jam)) {
-      return item.harga_pinalti_per_jam;
-    }
-    
-    if (typeof item.price === 'number' && !isNaN(item.price)) {
-      return item.price * 0.1;
-    }
-    
-    console.error(`Missing penalty rate for item ${item.name}, using fallback calculation`);
-    return 0;
-  };
+  const getItemPenaltyRate = (item: Partial<RentalItem> & { harga_penalti_per_jam?: number }): number => {
+  console.log(`Getting penalty rate for item:`, item);
+  
+  if (typeof item.harga_penalti_per_jam === 'number' && !isNaN(item.harga_penalti_per_jam)) {
+    return item.harga_penalti_per_jam;
+  }
+  
+  if (typeof item.price === 'number' && !isNaN(item.price)) {
+    return item.price * 0.1;
+  }
+  
+  console.error(`Missing penalty rate for item ${item.name || 'unknown'}, using fallback calculation`);
+  return 0;
+};
   console.log("item", rentals)
   const calculatePenalties = (rental: Rental) => {
     console.log("Full rental data:", rental);
@@ -174,18 +175,17 @@ export default function PagePengembalian() {
     
     if (hoursLate > 0 && rental.items) {
       const penaltyItems: PenaltyItem[] = rental.items.map(item => {
-        const penaltyRate = getItemPenaltyRate(item);
-        console.log(`Item ${item.name} penalty rate: ${penaltyRate}`);
-        
-        return {
-          barangId: item.id_barang,
-          itemName: item.name,
-          quantity: item.quantity || 1,
-          amount: Math.round(penaltyRate * hoursLate * (item.quantity || 1)),
-          reason: `Terlambat pengembalian ${hoursLate} jam`,
-          applyPenalty: true
-        };
-      });
+          const penaltyRate = getItemPenaltyRate(item);
+          return {
+            barangId: item.id_barang,
+            itemName: item.name,
+            quantity: item.quantity || 1,
+            amount: Math.round(penaltyRate * hoursLate * (item.quantity || 1)),
+            penaltyRate: penaltyRate, // Add this line to store the rate
+            reason: `Terlambat pengembalian ${hoursLate} jam`,
+            applyPenalty: true
+          };
+        });
       
       console.log("Calculated penalty items:", penaltyItems);
       setPenalties(penaltyItems);
@@ -675,10 +675,11 @@ export default function PagePengembalian() {
                                               <TableCell>{penaltyItem.itemName}</TableCell>
                                               <TableCell className="text-right">{penaltyItem.quantity}x</TableCell>
                                               <TableCell className="text-right">
-                                                {formatCurrency(penaltyItem.amount / (lateHours * penaltyItem.quantity))}
+                                                {formatCurrency(getItemPenaltyRate(selectedRental.items.find(item => 
+                                                  item.id_barang === penaltyItem.barangId) || { harga_pinalti_per_jam: 0 }))}
                                               </TableCell>
                                               <TableCell className="text-right">
-                                                {formatCurrency(penaltyItem.amount)}
+                                                {formatCurrency(totalPenaltyAmount)}
                                               </TableCell>
                                             </TableRow>
                                           ))}
