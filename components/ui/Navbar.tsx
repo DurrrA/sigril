@@ -270,9 +270,9 @@ const Navbar = () => {
               >
                 Pesanan Saya
               </Link>
-              {userData.role?.role_name === "Admin" && (
+              {userData.role?.id === 1 && (
                 <Link
-                  href="/admin/dashboard"
+                  href="/admin"
                   onClick={() => setMobileOpen(false)}
                   className="block px-3 py-2 rounded text-white hover:bg-white hover:text-[#3528AB]"
                 >

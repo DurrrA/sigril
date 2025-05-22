@@ -28,6 +28,7 @@ export async function GET() {
       tanggal_transaksi: tx.tanggal_transaksi?.toISOString?.() || "",
       status: tx.status,
       total: tx.total_pembayaran,
+      bukti_pembayaran: tx.bukti_pembayaran,
       sewa_req: tx.sewa_req
         ? {
             id: tx.sewa_req.id,
