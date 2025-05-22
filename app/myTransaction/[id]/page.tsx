@@ -11,10 +11,21 @@ import {
   ArrowLeft,
   Calendar,
   X,
-  Download
+  Download,
+  Star
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 
 interface Items {
   id: number
@@ -46,6 +57,12 @@ export default function TransactionDetailPage() {
   const params = useParams()
   const [transaction, setTransaction] = useState<TransactionDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [reviewText, setReviewText] = useState("")
+  const [rating, setRating] = useState(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [reviewSubmitted, setReviewSubmitted] = useState(false)
+  
 
   // Get the transaction ID from the query parameters
   const transactionId = params?.id
@@ -60,6 +77,63 @@ export default function TransactionDetailPage() {
       return "-"
     }
   }
+
+  const handleSubmitReview = async () => {
+  if (rating === 0) {
+    toast.error("Silakan pilih rating terlebih dahulu")
+    return
+  }
+
+  try {
+    setIsSubmitting(true)
+
+    const detailedResponse = await fetch(`/api/transaksi/${transaction?.id}`, {
+      credentials: 'include',
+    });
+    
+    if (!detailedResponse.ok) {
+      throw new Error('Failed to load detailed transaction data');
+    }
+    
+    const response = await fetch('/api/review', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        transactionId: transaction?.id,
+        rating,
+        comment: reviewText
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to submit review');
+    }
+
+    toast.success("Ulasan berhasil dikirim!")
+    
+    // Set the review submitted state instead of closing the modal
+    setReviewSubmitted(true);
+    
+    // Reset review form
+    setReviewText("")
+    setRating(0)
+  } catch (error) {
+    console.error("Error submitting review:", error)
+    toast.error(`Gagal mengirim ulasan: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  } finally {
+    setIsSubmitting(false)
+  }
+}
+const handleCloseModal = () => {
+  setIsReviewModalOpen(false);
+  // Reset after a short delay to ensure the animation completes before resetting
+  setTimeout(() => {
+    setReviewSubmitted(false);
+  }, 300);
+};
 
   useEffect(() => {
     const fetchTransactionDetail = async () => {
@@ -100,7 +174,7 @@ export default function TransactionDetailPage() {
         // Ensure valid dates
         const now = new Date().toISOString()
 
-        // Prepare the transaction object, naming items as “orderItems”
+        // Prepare the transaction object, naming items as "orderItems"
         const formattedTransaction: TransactionDetail = {
           id: responseData.id || 0,
           createdAt: responseData.tanggal_transaksi || responseData.created_at || responseData.createdAt || now,
@@ -126,8 +200,19 @@ export default function TransactionDetailPage() {
     fetchTransactionDetail()
   }, [transactionId, router])
 
+  // Check if URL has review=true query param to auto-open review modal
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('review') === 'true' && transaction?.status?.toLowerCase() === 'completed') {
+        setIsReviewModalOpen(true);
+      }
+    }
+  }, [transaction]);
+
   // Get status badge color and text
   const getStatusInfo = (status: string, paymentStatus: string) => {
+    console.log('Detailed Transaction Data:', paymentStatus)
     if (status === 'cancelled') {
       return {
         color: 'bg-red-100 text-red-800',
@@ -142,7 +227,7 @@ export default function TransactionDetailPage() {
         icon: <Clock className="w-5 h-5 mr-2" />
       }
     }
-    if (status === 'completed') {
+    if (status === 'COMPLETED') {
       return {
         color: 'bg-green-100 text-green-800',
         text: 'Selesai',
@@ -193,6 +278,7 @@ export default function TransactionDetailPage() {
   }
 
   const { color, text, icon } = getStatusInfo(transaction.status, transaction.paymentStatus)
+  const isCompleted = transaction.status.toLowerCase() === 'completed' || transaction.status.toLowerCase() === 'selesai';
 
   // Safe calculation of rental days
   let rentalDays = 0
@@ -307,6 +393,17 @@ export default function TransactionDetailPage() {
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        {/* Show Review button only for completed transactions */}
+        {isCompleted && (
+          <Button
+            className="bg-[#3528AB] text-white hover:bg-[#2a1f8a] transition-colors px-8 py-2 rounded-lg flex items-center justify-center"
+            onClick={() => setIsReviewModalOpen(true)}
+          >
+            <Star className="h-5 w-5 mr-2" />
+            Beri Ulasan
+          </Button>
+        )}
+        
         <button
           className="bg-white border border-[#3528AB] text-[#3528AB] hover:bg-[#3528AB] hover:text-white transition-colors px-8 py-2 rounded-lg flex items-center justify-center"
           onClick={() => window.print()}
@@ -314,6 +411,7 @@ export default function TransactionDetailPage() {
           <Download className="h-5 w-5 mr-2" />
           Cetak Invoice
         </button>
+        
         <Link
           href="/help"
           className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors px-8 py-2 rounded-lg text-center"
@@ -321,6 +419,111 @@ export default function TransactionDetailPage() {
           Bantuan
         </Link>
       </div>
+      
+      {/* Review Modal */}
+      <Dialog open={isReviewModalOpen} onOpenChange={handleCloseModal}>
+  <DialogContent className="sm:max-w-[425px]">
+    {!reviewSubmitted ? (
+      <>
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold">Beri Ulasan</DialogTitle>
+        </DialogHeader>
+        
+        <div className="py-4">
+          <h4 className="font-medium mb-2">Order #{transaction.id}</h4>
+          <p className="text-sm text-gray-500 mb-4">
+            Bagaimana pengalaman anda dengan layanan kami?
+          </p>
+          
+          {/* Star Rating */}
+          <div className="flex items-center justify-center space-x-2 mb-6">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button 
+                key={star} 
+                type="button"
+                onClick={() => setRating(star)}
+                className="focus:outline-none"
+              >
+                <Star 
+                  className={`h-8 w-8 ${rating >= star 
+                    ? 'text-yellow-400 fill-yellow-400' 
+                    : 'text-gray-300'}`} 
+                />
+              </button>
+            ))}
+          </div>
+          
+          {/* Review Comment */}
+          <Textarea
+            placeholder="Bagikan pengalaman anda dengan produk dan layanan kami..."
+            className="min-h-[120px]"
+            value={reviewText}
+            onChange={(e) => setReviewText(e.target.value)}
+          />
+        </div>
+        
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={handleCloseModal}
+            disabled={isSubmitting}
+          >
+            Batal
+          </Button>
+          <Button 
+            onClick={handleSubmitReview}
+            disabled={isSubmitting}
+            className="bg-[#3528AB] hover:bg-[#2a1f8a]"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Mengirim...
+              </>
+            ) : 'Kirim Ulasan'}
+          </Button>
+        </DialogFooter>
+      </>
+    ) : (
+      /* Thank You Message - Animated and Eye-catching */
+      <div className="py-8 px-4 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4 animate-bounce">
+          <CheckCircle className="h-10 w-10 text-green-600" />
+        </div>
+        
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          Terima Kasih!
+        </h2>
+        
+        <p className="text-gray-600 mb-6">
+          Ulasan Anda sangat berarti bagi kami untuk terus meningkatkan layanan.
+        </p>
+        
+        <div className="flex justify-center">
+          <Button 
+            onClick={handleCloseModal}
+            className="bg-[#3528AB] hover:bg-[#2a1f8a] px-8"
+          >
+            Tutup
+          </Button>
+        </div>
+        
+        {/* Show the rating they provided */}
+        <div className="mt-6">
+          <p className="text-sm text-gray-500 mb-2">Penilaian Anda:</p>
+          <div className="flex justify-center space-x-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star 
+                key={star}
+                className={`h-5 w-5 text-yellow-400 ${star <= rating ? 'fill-yellow-400' : ''}`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
+  </DialogContent>
+</Dialog>
     </div>
   )
 }

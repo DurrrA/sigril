@@ -187,7 +187,7 @@ export default function Home() {
   <h2 className="text-4xl font-extrabold text-center text-gray-800 mb-10">Review Pelanggan</h2>
   <div className="max-w-6xl mx-auto">
     <ReviewCarousel
-      reviews={reviews.slice(0, 4).map((r) => ({
+      reviews={reviews.slice(0, 10).map((r) => ({
         profileImage: normalizeImage(r.user.foto),
         name: r.user.nama,
         review: r.komentar || ''

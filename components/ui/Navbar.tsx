@@ -213,7 +213,7 @@ const Navbar = () => {
                       </Link>
                       {userData?.role?.role_name === "Admin" && (
                         <Link
-                          href="/admin/dashboard"
+                          href="/admin"
                           className="flex items-center px-4 py-2 text-gray-800 hover:bg-[#3528AB] hover:text-white"
                         >
                           <ShieldCheck className="h-4 w-4 mr-3" /> Dashboard Admin

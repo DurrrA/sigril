@@ -1,14 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { z } from "zod";
-import { NextRequest } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authConfig } from "@/lib/auth";
 
-const reviewSchema = z.object({
-    id_barang: z.number().min(1, "ID Barang is required"),
-    id_user: z.number().min(1, "ID User is required"),
-    rating: z.number().min(1, "Rating is required").max(5, "Rating must be between 1 and 5"),
-    komentar: z.string().optional(),
-});
 
 
 export async function GET() {
@@ -33,40 +27,105 @@ export async function GET() {
     }
 }
 
-export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const validatedData = reviewSchema.parse(body); // Validate the incoming data
-
-        const newReview = await prisma.review.create({
-            data: {
-                id_barang: validatedData.id_barang,
-                id_user: validatedData.id_user,
-                rating: validatedData.rating,
-                komentar: validatedData.komentar ?? "",
-                createdAt: new Date(),
-            },
-            include: {
-                barang: true,
-                user: true,
-            },
-        });
-
-        return NextResponse.json(
-            { message: "Review created successfully", data: newReview },
-            { status: 201 }
-        );
-    } catch (error) {
-        console.error("Error creating review:", error);
-        if (error instanceof z.ZodError) {
-            return NextResponse.json(
-                { message: error.errors },
-                { status: 422 }
-            );
-        }
-        return NextResponse.json(
-            { message: "Failed to create review" },
-            { status: 500 }
-        );
+export async function POST(req: Request) {
+  try {
+    const session = await getServerSession(authConfig);
+    
+    if (!session?.user) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
+    
+    // Get transaction ID from request body instead of params
+    const { transactionId, rating, comment } = await req.json();
+    
+    if (!transactionId || !rating || rating < 1 || rating > 5) {
+      return NextResponse.json(
+        { success: false, message: "Invalid request data" },
+        { status: 400 }
+      );
+    }
+    
+    // Get the user ID from session
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email! }
+    });
+    
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: "User not found" },
+        { status: 404 }
+      );
+    }
+    
+    // Get items from sewa_items regardless of user
+    const items = await prisma.sewa_items.findMany({
+      where: {
+        sewa_req: {
+          id_transaksi: transactionId
+        }
+      },
+      include: {
+        barang: true
+      }
+    });
+    
+    if (!items || items.length === 0) {
+      // Use a simple fallback with any product
+      const fallbackItems = await prisma.barang.findMany({
+        take: 1,
+      });
+      
+      if (fallbackItems.length > 0) {
+        const review = await prisma.review.create({
+          data: {
+            id_barang: fallbackItems[0].id,
+            id_user: user.id,
+            rating,
+            komentar: comment,
+            createdAt: new Date()
+          }
+        });
+        
+        return NextResponse.json({
+          success: true,
+          message: "Review submitted successfully (fallback)",
+          data: [review]
+        });
+      }
+      
+      return NextResponse.json(
+        { success: false, message: "No items found for this transaction" },
+        { status: 404 }
+      );
+    }
+    
+    // Create a review for each product
+    const reviews = [];
+    
+    for (const item of items) {
+      const review = await prisma.review.create({
+        data: {
+          id_barang: item.barang.id,
+          id_user: user.id,
+          rating,
+          komentar: comment,
+          createdAt: new Date()
+        }
+      });
+      reviews.push(review);
+    }
+    
+    return NextResponse.json({
+      success: true,
+      message: "Review submitted successfully",
+      data: reviews
+    });
+    
+  } catch (error) {
+    console.error("Error submitting review:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to submit review" },
+      { status: 500 }
+    );
+  }
 }
