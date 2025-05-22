@@ -5,11 +5,22 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  // 1) Roles
+  // 1) Roles with hardcoded IDs
   const [adminRole, userRole] = await Promise.all([
-    prisma.role.create({ data: { role_name: 'Admin',  deskripsi: 'Administrator' } }),
-    prisma.role.create({ data: { role_name: 'User',   deskripsi: 'Regular user' } }),
+    prisma.role.upsert({
+      where: { id: 1 },
+      update: { role_name: 'Admin', deskripsi: 'Administrator' },
+      create: { id: 1, role_name: 'Admin', deskripsi: 'Administrator' }
+    }),
+    prisma.role.upsert({
+      where: { id: 2 },
+      update: { role_name: 'User', deskripsi: 'Regular user' },
+      create: { id: 2, role_name: 'User', deskripsi: 'Regular user' }
+    }),
   ])
+
+  console.log(`Admin role created with ID: ${adminRole.id}`)
+  console.log(`User role created with ID: ${userRole.id}`)
 
   // 2) Tags & Categories
   const tagNames = ['Adventure', 'Tutorial', 'Review', 'News']
@@ -31,7 +42,7 @@ async function main() {
       username: "admin",
       password: hashedPassword,
       email: "admin@kenamplan.com",
-      role_id: adminRole.id,
+      role_id: adminRole.id, // This will be 1
       is_blacklisted: false,
       createdAt: new Date(),
     },
@@ -40,31 +51,31 @@ async function main() {
   
   // 4) Generate some regular users
   const users = await Promise.all(
-  Array.from({ length: 10 }).map(() => {
-    // Generate random coordinates in Indonesia
-    // Jakarta area coordinates with some randomness
-    const lat = -6.2088 + (Math.random() - 0.5) * 0.3;
-    const lng = 106.8456 + (Math.random() - 0.5) * 0.3;
-    
-    return prisma.user.create({
-      data: {
-        username: faker.internet.userName(),
-        password: faker.internet.password(),
-        email: faker.internet.email(),
-        role_id: userRole.id,
-        is_blacklisted: faker.datatype.boolean(),
-        createdAt: faker.date.past(),
-        no_telp: faker.phone.number(),
-        alamat: `${faker.location.streetAddress()}, ${faker.location.city()}, Indonesia`,
-        full_name: faker.person.fullName(),
-        ...(Math.random() > 0.3 ? {
-          location_lat: lat,
-          location_long: lng,
-        } : {})
-      },
-    });
-  })
-);
+    Array.from({ length: 10 }).map(() => {
+      // Generate random coordinates in Indonesia
+      // Jakarta area coordinates with some randomness
+      const lat = -6.2088 + (Math.random() - 0.5) * 0.3;
+      const lng = 106.8456 + (Math.random() - 0.5) * 0.3;
+      
+      return prisma.user.create({
+        data: {
+          username: faker.internet.userName(),
+          password: faker.internet.password(),
+          email: faker.internet.email(),
+          role_id: userRole.id, // This will be 2
+          is_blacklisted: faker.datatype.boolean(),
+          createdAt: faker.date.past(),
+          no_telp: faker.phone.number(),
+          alamat: `${faker.location.streetAddress()}, ${faker.location.city()}, Indonesia`,
+          full_name: faker.person.fullName(),
+          ...(Math.random() > 0.3 ? {
+            location_lat: lat,
+            location_long: lng,
+          } : {})
+        },
+      });
+    })
+  );
 
   // 5) Create some barang
   const barangData = [

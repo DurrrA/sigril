@@ -117,25 +117,44 @@ export default function PagePenyewaan() {
   }, []);
 
   const updateStatus = async (id: number, newStatus: string) => {
-    try {
-      const res = await fetch(`/api/sewa/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (!res.ok) throw new Error("Gagal update status");
-      const updated = await res.json();
-      setTransaksiData((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, status: updated.status } : item
-        )
-      );
-      toast.success(`Status berhasil diubah menjadi ${updated.status}`);
-    } catch (err) {
-      console.error("Update status error:", err);
-      toast.error("Gagal mengubah status");
-    }
-  };
+  try {
+    const res = await fetch(`/api/sewa/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        status: newStatus,
+        updateTransaction: true // Flag to also update the related transaction
+      }),
+    });
+    
+    if (!res.ok) throw new Error("Gagal update status");
+    const updated = await res.json();
+    
+    // Update the UI state
+    setTransaksiData((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          // Update both the main status and the sewa_req status if it exists
+          const updatedItem = { ...item, status: updated.status };
+          if (updatedItem.sewa_req) {
+            updatedItem.sewa_req = { 
+              ...updatedItem.sewa_req,
+              status: newStatus,
+              payment_status: newStatus === "confirmed" ? "paid" : updatedItem.sewa_req.payment_status
+            };
+          }
+          return updatedItem;
+        }
+        return item;
+      })
+    );
+    
+    toast.success(`Status berhasil diubah menjadi ${updated.status}`);
+  } catch (err) {
+    console.error("Update status error:", err);
+    toast.error("Gagal mengubah status");
+  }
+};
 
   const filteredData = transaksiData.filter((data) => {
     const keywordMatch =

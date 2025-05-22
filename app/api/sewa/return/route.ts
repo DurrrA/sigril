@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { z } from 'zod';
 import { getServerSession } from 'next-auth';
 import { authConfig } from '@/lib/auth';
-import { z } from 'zod';
 
 // Define validation schema for return with penalties
 const returnSchema = z.object({
@@ -32,18 +32,11 @@ export async function POST(request: NextRequest) {
     // Check if user is authenticated and is admin
     const session = await getServerSession(authConfig);
     
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Get user role from database
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { role: true }
-    });
-    
-    if (!user || user.role.id !== 1) {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    if (!session || !session.user) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Unauthorized' 
+      }, { status: 401 });
     }
     
     // Parse and validate request body
@@ -57,11 +50,15 @@ export async function POST(request: NextRequest) {
     });
     
     if (!rental) {
-      return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Rental not found' 
+      }, { status: 404 });
     }
     
     if (rental.status !== 'confirmed' && rental.status !== 'active') {
       return NextResponse.json({ 
+        success: false,
         error: 'Only confirmed or active rentals can be processed as returned' 
       }, { status: 400 });
     }
@@ -69,16 +66,16 @@ export async function POST(request: NextRequest) {
     // Filter only penalties that should be applied
     const appliedPenalties = validatedData.penalties?.filter(p => p.applyPenalty) || [];
     
-    // Process the return in a transaction
+    // Use a transaction to ensure all operations are atomic
     const result = await prisma.$transaction(async (tx) => {
-      // Update rental status
+      // Update the rental record
       const updatedRental = await tx.sewa_req.update({
-        where: { id: validatedData.rentalId },
-        data: { 
+        where: { id: rental.id },
+        data: {
           status: 'completed',
           dikembalikan_pada: new Date(),
-          has_been_inspected: true,
-          penalties_applied: appliedPenalties.length > 0
+          penalties_applied: appliedPenalties.length > 0,
+          has_been_inspected: true
         }
       });
       
@@ -117,57 +114,31 @@ export async function POST(request: NextRequest) {
         });
       }
       
-      // Also update the related transaction if it exists
-      if (rental.id_transaksi) {
-        await tx.transaksi.update({
-          where: { id: rental.id_transaksi },
-          data: { status: 'COMPLETED' }
-        });
-      }
-      
-      // Update stok for each returned item
-      for (const sewaItem of rental.sewa_items) {
-        const barang = await tx.barang.findUnique({
-          where: { id: sewaItem.id_barang }
-        });
-        
-        if (barang) {
-          await tx.barang.update({
-            where: { id: sewaItem.id_barang },
-            data: {
-              stok: {
-                increment: sewaItem.jumlah
-              }
-            }
-          });
-        }
-      }
-      
       return {
-        rentalId: updatedRental.id,
-        status: updatedRental.status,
-        penaltyCount: createdPenalties.length,
-        paymentProcessed: paymentRecord !== null
+        rental: updatedRental,
+        penalties: createdPenalties,
+        payment: paymentRecord
       };
     });
     
+    // Add success: true to the response
     return NextResponse.json({
       success: true,
-      message: 'Rental successfully processed as returned',
+      message: 'Rental return processed successfully',
       data: result
-    });
+    }, { status: 200 });
     
   } catch (error) {
-    console.error('Error processing return:', error);
+    console.error('Error processing rental return:', error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ 
-        error: 'Invalid request data', 
-        details: error.errors 
+        success: false,
+        error: error.errors.map(e => e.message).join(', ') 
       }, { status: 400 });
     }
     return NextResponse.json({ 
-      error: 'Failed to process return',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: 'Failed to process rental return' 
     }, { status: 500 });
   }
 }

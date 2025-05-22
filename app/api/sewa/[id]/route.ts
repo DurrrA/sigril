@@ -106,23 +106,84 @@ export async function GET(
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const { status } = await request.json();
-  const id = parseInt(params.id);
-
-  if (!["pending", "confirmed", "cancelled"].includes(status)) {
-    return NextResponse.json({ success: false, message: "Status tidak valid" }, { status: 400 });
-  }
-
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const updated = await prisma.sewa_req.update({
+    const body = await request.json();
+    const { status, updateTransaction } = body;
+    const id = parseInt(params.id);
+
+    if (!["pending", "confirmed", "cancelled", "active", "completed"].includes(status)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid status" },
+        { status: 400 }
+      );
+    }
+
+    // First check if the transaction exists and get its associated sewa_req
+    const transaction = await prisma.transaksi.findUnique({
       where: { id },
-      data: { status },
+      include: { sewa_req: true }
     });
 
-    return NextResponse.json({ success: true, status: updated.status });
+    if (!transaction) {
+      return NextResponse.json(
+        { success: false, error: "Transaction not found" },
+        { status: 404 }
+      );
+    }
+
+    if (!transaction.sewa_req) {
+      return NextResponse.json(
+        { success: false, error: "No rental request associated with this transaction" },
+        { status: 404 }
+      );
+    }
+
+    // Use a transaction to ensure both updates succeed or fail together
+    const result = await prisma.$transaction(async (tx) => {
+      // Update the sewa_req record using the ID from the found transaction
+      const updated = await tx.sewa_req.update({
+        where: { id: transaction.sewa_req!.id },
+        data: { 
+          status,
+          payment_status: status === "confirmed" ? "paid" : transaction.sewa_req!.payment_status
+        },
+        include: {
+          user: true,
+          sewa_items: {
+            include: { barang: true }
+          }
+        }
+      });
+
+      // If requested, also update the transaction status
+      if (updateTransaction) {
+        await tx.transaksi.update({
+          where: { id },
+          data: { 
+            status: status === "confirmed" ? "PAID" : 
+                   status === "cancelled" ? "CANCELLED" : 
+                   "UNPAID" 
+          }
+        });
+      }
+
+      return updated;
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: result,
+      status: result.status
+    });
   } catch (error) {
     console.error("Update gagal:", error);
-    return NextResponse.json({ success: false, message: "Gagal update" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Failed to update" },
+      { status: 500 }
+    );
   }
 }

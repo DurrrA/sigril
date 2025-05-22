@@ -41,7 +41,7 @@ export async function POST(req: Request) {
         no_telp: no_telp || '',  // if you want to save phone number
         is_blacklisted: false,
         remember_token: null,
-        role_id: 1,
+        role_id: 2,
         provider: 'credentials', // Assuming you want to set the provider as 'credentials'
       },
     });

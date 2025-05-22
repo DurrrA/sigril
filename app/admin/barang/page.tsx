@@ -1,6 +1,6 @@
 "use client"
 
-import { PencilIcon, TrashIcon, PlusIcon, Loader2 } from "lucide-react";
+import { PencilIcon, TrashIcon, PlusIcon, Loader2, Calendar, CheckCircle2, XCircle, Eye } from "lucide-react";
 import Image from "next/image"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -34,6 +34,9 @@ import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, Pagi
 import { toast } from "sonner";
 import { Barang, BarangResponse, kategori } from "@/interfaces/barang.interfaces";
 import AdminProtection from "@/components/admin-protection";
+// Import DatePicker
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
 // Helper function to safely handle image paths
 const getImagePath = (path: string | null | undefined): string => {
@@ -62,6 +65,21 @@ export default function PageBarang() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  
+  // Availability states
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [endDate, setEndDate] = useState<Date>(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow;
+  });
+  const [availabilityData, setAvailabilityData] = useState<Record<string | number, {
+    available: boolean;
+    availableQuantity: number;
+    totalStock: number;
+  }>>({});
+  const [showAvailability, setShowAvailability] = useState(false);
   
   // Client-side formatting state to prevent hydration errors
   const [formattedPrices, setFormattedPrices] = useState<Record<string, string>>({});
@@ -160,6 +178,78 @@ export default function PageBarang() {
     }
   };
 
+// Define interface for availability data
+interface AvailabilityItem {
+  available: boolean;
+  availableQuantity: number;
+  totalStock: number;
+  error?: boolean;
+}
+
+// New function to check availability
+// Modify the checkAvailability function in your admin/barang/page.tsx
+const checkAvailability = async () => {
+  try {
+    setCheckingAvailability(true);
+    
+    // Create an object to store all availability data
+    const availability: Record<string | number, AvailabilityItem> = {};
+    
+    // Check availability for each item in the current page
+    for (const barang of paginatedData) {
+      try {
+        const response = await fetch(
+          `/api/sewa/availability?itemId=${barang.id}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+        );
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error(`Error checking availability for ${barang.nama}:`, errorData);
+          availability[barang.id] = {
+            available: false,
+            availableQuantity: 0,
+            totalStock: barang.stok,
+            error: true
+          };
+          continue;
+        }
+        
+        const data = await response.json();
+        availability[barang.id] = {
+          available: data.available,
+          availableQuantity: data.availableQuantity,
+          totalStock: data.totalStock
+        };
+      } catch (itemError) {
+        console.error(`Error processing item ${barang.id}:`, itemError);
+        availability[barang.id] = {
+          available: false,
+          availableQuantity: 0,
+          totalStock: barang.stok,
+          error: true
+        };
+      }
+    }
+    
+    setAvailabilityData(availability);
+    setShowAvailability(true);
+  } catch (error) {
+    console.error("Error checking availability:", error);
+    toast.error("Gagal memeriksa ketersediaan barang");
+  } finally {
+    setCheckingAvailability(false);
+  }
+};
+  
+  // Function to toggle availability view
+  const toggleAvailabilityView = () => {
+    if (!showAvailability) {
+      checkAvailability();
+    } else {
+      setShowAvailability(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteDialog.barang) return;
     
@@ -238,6 +328,10 @@ export default function PageBarang() {
     fetchBarang();
     toast.success('Item berhasil diperbarui');
   };
+
+  // Calculate min end date
+  const minEndDate = new Date(startDate);
+  minEndDate.setDate(minEndDate.getDate() + 1);
 
   return (
     <AdminProtection>
@@ -321,6 +415,64 @@ export default function PageBarang() {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Add availability check section */}
+                  <div className="bg-gray-50 p-4 rounded-lg border">
+                    <h3 className="font-medium flex items-center text-lg mb-3">
+                      <Calendar className="mr-2 h-5 w-5" /> Cek Ketersediaan Barang
+                    </h3>
+                    <div className="flex flex-wrap gap-3 items-center">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm font-medium block mb-1">Tanggal Mulai:</label>
+                          <DatePicker
+                            selected={startDate}
+                            onChange={(date: Date | null) => date && setStartDate(date)}
+                            selectsStart
+                            startDate={startDate}
+                            endDate={endDate}
+                            minDate={new Date()}
+                            dateFormat="dd/MM/yyyy"
+                            className="w-full border p-2 rounded text-sm"
+                            placeholderText="Pilih tanggal mulai"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium block mb-1">Tanggal Selesai:</label>
+                          <DatePicker
+                            selected={endDate}
+                            onChange={(date: Date | null) => date && setEndDate(date)}
+                            selectsEnd
+                            startDate={startDate}
+                            endDate={endDate}
+                            minDate={minEndDate}
+                            dateFormat="dd/MM/yyyy"
+                            className="w-full border p-2 rounded text-sm"
+                            placeholderText="Pilih tanggal selesai"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-4 md:mt-0">
+                        <Button 
+                          onClick={toggleAvailabilityView}
+                          className={`${showAvailability ? 'bg-gray-600' : 'bg-[#3528AB]'} text-white`}
+                          disabled={checkingAvailability}
+                        >
+                          {checkingAvailability ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              Memeriksa...
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="h-4 w-4 mr-2" />
+                              {showAvailability ? 'Sembunyikan Ketersediaan' : 'Lihat Ketersediaan'}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Table */}
                   <div className="overflow-auto rounded-lg border">
@@ -332,6 +484,7 @@ export default function PageBarang() {
                           <TableHead>Kategori</TableHead>
                           <TableHead>Harga</TableHead>
                           <TableHead>Stok</TableHead>
+                          {showAvailability && <TableHead>Ketersediaan</TableHead>}
                           <TableHead>Harga Penalti</TableHead>
                           <TableHead>Foto</TableHead>
                           <TableHead className="text-center">Aksi</TableHead>
@@ -340,7 +493,7 @@ export default function PageBarang() {
                       <TableBody>
                         {loading ? (
                           <TableRow>
-                            <TableCell colSpan={8} className="text-center h-32">
+                            <TableCell colSpan={showAvailability ? 9 : 8} className="text-center h-32">
                               <div className="flex justify-center items-center">
                                 <Loader2 className="h-8 w-8 animate-spin text-[#3528AB]" />
                                 <span className="ml-2">Memuat data...</span>
@@ -349,7 +502,7 @@ export default function PageBarang() {
                           </TableRow>
                         ) : paginatedData.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8">
+                            <TableCell colSpan={showAvailability ? 9 : 8} className="text-center py-8">
                               Tidak ada barang ditemukan
                             </TableCell>
                           </TableRow>
@@ -363,6 +516,35 @@ export default function PageBarang() {
                                 Rp{formattedPrices[`${barang.id}-price`] || barang.harga}
                               </TableCell>
                               <TableCell>{barang.stok}</TableCell>
+                              
+                                                            {/* Availability column */}
+                              {showAvailability && (
+                                <TableCell>
+                                  {availabilityData[barang.id] ? (
+                                    <div className="flex items-center">
+                                      {availabilityData[barang.id].available ? (
+                                        <div className="text-green-600 flex items-center">
+                                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                                          <span>
+                                            Tersedia: {availabilityData[barang.id].availableQuantity} unit
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <div className="text-red-600 flex items-center">
+                                          <XCircle className="h-4 w-4 mr-2" />
+                                          <span>Tidak tersedia untuk tanggal tersebut</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center text-gray-400">
+                                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                      <span>Memeriksa...</span>
+                                    </div>
+                                  )}
+                                </TableCell>
+                              )}
+                              
                               <TableCell suppressHydrationWarning>
                                 Rp{formattedPrices[`${barang.id}-penalty`] || barang.harga_pinalti_per_jam}
                               </TableCell>
@@ -534,4 +716,3 @@ export default function PageBarang() {
     </AdminProtection>
   );
 }
-
