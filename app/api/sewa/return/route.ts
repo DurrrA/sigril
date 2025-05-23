@@ -79,6 +79,16 @@ export async function POST(request: NextRequest) {
         }
       });
       
+      // NEW: Update the associated transaction status to completed
+      if (rental.id_transaksi) {
+        await tx.transaksi.update({
+          where: { id: rental.id_transaksi },
+          data: {
+            status: 'COMPLETED'
+          }
+        });
+      }
+      
       // Create penalties if any
       const createdPenalties = [];
       if (appliedPenalties.length > 0) {
