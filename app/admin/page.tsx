@@ -102,6 +102,7 @@ export default function Page() {
       }
       
       const result = await response.json();
+      console.log("Dashboard Stats:", result);
       
       if (result.success) {
         setStats(result.data);
@@ -133,18 +134,7 @@ export default function Page() {
         // Simulating data for now - replace with actual API call
         await new Promise(resolve => setTimeout(resolve, 800))
         
-        setStats({
-          totalUsers: 42,
-          totalOrders: 128,
-          totalRevenue: 24500000,
-          activeRentals: 17,
-          recentOrders: [
-            { id: 235, username: "alfianz", date: "2025-05-13", status: "completed", amount: 450000 },
-            { id: 234, username: "dianp", date: "2025-05-12", status: "active", amount: 350000 },
-            { id: 233, username: "rahmanf", date: "2025-05-11", status: "active", amount: 125000 },
-            { id: 232, username: "mariak", date: "2025-05-10", status: "pending", amount: 275000 },
-          ]
-        })
+       
       } catch (error) {
         console.error("Error fetching dashboard stats:", error)
       } finally {

@@ -84,13 +84,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         </div>
       </div>
 
- <div className="p-4 flex-grow">
-        <p className="text-lg font-bold text-gray-800 mb-2 text-center">{name}</p>
-        <p className="text-lg font-bold text-orange-400 mb-2">{price}</p>
-        <p className="text-sm text-gray-600 text-center">
-          {truncateDescription(description, 10)}
-        </p>
-      </div>
+
 
       <button
         onClick={handleAddToCart}
