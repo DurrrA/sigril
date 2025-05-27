@@ -9,23 +9,13 @@ import { id } from 'date-fns/locale';
 import { Loader2, Search, Filter, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+
 import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const { BaseLayer } = LayersControl;
 
@@ -95,6 +85,7 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
   const [dateRangeFilter, setDateRangeFilter] = useState<[Date | null, Date | null]>([null, null]);
   const [flyToTarget, setFlyToTarget] = useState<[number, number] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [priceRangeFilter, setPriceRangeFilter] = useState<[number | null, number | null]>([null, null]);
   
   // Define interface for Nominatim search results
   interface NominatimResult {
@@ -268,6 +259,7 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
     setSearchQuery("");
     setStatusFilter(null);
     setDateRangeFilter([null, null]);
+    setPriceRangeFilter([null, null]); // Reset price range filter
     setSearchResults([]);
   };
 
@@ -277,6 +269,18 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
       // Filter by status
       if (statusFilter && tx.status.toLowerCase() !== statusFilter.toLowerCase()) {
         return false;
+      }
+      
+      // Filter by price range
+      if (priceRangeFilter[0] !== null) {
+        if (tx.totalAmount < priceRangeFilter[0]) {
+          return false;
+        }
+      }
+      if (priceRangeFilter[1] !== null) {
+        if (tx.totalAmount > priceRangeFilter[1]) {
+          return false;
+        }
       }
       
       // Filter by date range
@@ -306,7 +310,7 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
       
       return true;
     });
-  }, [transactions, statusFilter, dateRangeFilter, searchQuery, searchResults.length, addresses]);
+  }, [transactions, statusFilter, dateRangeFilter, priceRangeFilter, searchQuery, searchResults.length, addresses]);
 
   if (isLoading) {
     return (
@@ -320,285 +324,282 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
   }
 
   return (
-    <div className="relative h-full">
-      {/* Search and Filter Controls */}
-      <div className="absolute top-20 left-4 right-4 z-[1000] flex gap-2 flex-col sm:flex-row">
-        <div className="relative flex-1">
-          <Input
-            type="text"
-            placeholder="Search by order ID, customer, or address..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pr-10 bg-white shadow-md"
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-0 top-0 h-full"
-            onClick={handleSearch}
-            disabled={isSearching}
-          >
-            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-          </Button>
+  <div className="relative h-full">
+    {/* Search and Filter Controls */}
+    <div className="absolute top-20 left-4 right-4 z-[1000] flex gap-2 flex-col sm:flex-row">
+      <div className="relative flex-1">
+        <Input
+          type="text"
+          placeholder="Search by order ID, customer, or address..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pr-10 bg-white shadow-md"
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-0 top-0 h-full"
+          onClick={handleSearch}
+          disabled={isSearching}
+        >
+          {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+        </Button>
 
-          {/* Search Results Dropdown */}
-          {searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white shadow-lg rounded-md overflow-hidden border border-gray-200 max-h-[200px] overflow-y-auto z-50">
-              {searchResults.map((result, index) => (
-                <button
-                  key={index}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-100 text-sm border-b border-gray-100 last:border-none"
-                  onClick={() => {
-                    setFlyToTarget([parseFloat(result.lat), parseFloat(result.lon)]);
-                    setSearchResults([]);
-                  }}
-                >
-                  {result.display_name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Layer Switcher Dropdown (keep for UI consistency, but it won't control the map) */}
-        {/* <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="bg-white shadow-md flex gap-2">
-              <Layers className="h-4 w-4" />
-              <span className="hidden sm:inline">Map Style</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {Object.entries(mapLayers).map(([key, layer]) => (
-              <DropdownMenuItem 
-                key={key}
-                className={currentBaseLayer === key ? "bg-gray-100 font-medium" : ""}
+        {/* Search Results Dropdown */}
+        {searchResults.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white shadow-lg rounded-md overflow-hidden border border-gray-200 max-h-[200px] overflow-y-auto z-50">
+            {searchResults.map((result, index) => (
+              <button
+                key={index}
+                className="w-full px-3 py-2 text-left hover:bg-gray-100 text-sm border-b border-gray-100 last:border-none"
                 onClick={() => {
-                  console.log("Changing to layer:", key);
-                  setCurrentBaseLayer(key as MapLayerKey);
+                  setFlyToTarget([parseFloat(result.lat), parseFloat(result.lon)]);
+                  setSearchResults([]);
                 }}
               >
-                {layer.name}
-              </DropdownMenuItem>
+                {result.display_name}
+              </button>
             ))}
-          </DropdownMenuContent>
-        </DropdownMenu> */}
-
-        {/* Filter button - opens filter drawer on mobile */}
-        <Drawer>
-          <DrawerTrigger asChild>
-            <Button variant="outline" className="bg-white shadow-md flex sm:hidden gap-2">
-              <Filter className="h-4 w-4" />
-              Filter
-            </Button>
-          </DrawerTrigger>
-          <DrawerContent>
-            <DrawerHeader>
-              <DrawerTitle>Filter Orders</DrawerTitle>
-            </DrawerHeader>
-            
-            <div className="p-4 space-y-4">
-              {/* Status Filter */}
-              <div>
-                <label className="text-sm font-medium mb-1 block">Status</label>
-                <Select value={statusFilter || ""} onValueChange={(value) => setStatusFilter(value || null)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Statuses</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="processing">Processing</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Date Range Filter */}
-              <div>
-                <label className="text-sm font-medium mb-1 block">Date Range</label>
-                <div className="space-y-2">
-                  <Calendar
-                    mode="range"
-                    selected={{
-                      from: dateRangeFilter[0] || undefined,
-                      to: dateRangeFilter[1] || undefined
-                    }}
-                    onSelect={(range) => 
-                      setDateRangeFilter([
-                        range?.from || null,
-                        range?.to || null
-                      ])
-                    }
-                    className="border rounded-md p-3"
-                  />
-                </div>
-              </div>
-              
-              {/* Reset Button */}
-              <Button 
-                variant="outline" 
-                onClick={resetFilters} 
-                className="w-full"
-              >
-                Reset Filters
-              </Button>
-            </div>
-            
-            <DrawerFooter>
-              <DrawerClose asChild>
-                <Button>Apply Filters</Button>
-              </DrawerClose>
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
-
-        {/* Reset button (shows only when filters are applied) */}
-        {(statusFilter || dateRangeFilter[0] || dateRangeFilter[1] || searchQuery) && (
-          <Button 
-            variant="ghost" 
-            onClick={resetFilters}
-            className="bg-white shadow-md"
-            size="icon"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          </div>
         )}
       </div>
       
-      {/* Results counter */}
-      <div className="absolute top-22 sm:top-8 right-16 z-[1000] bg-white px-2 py-1 rounded-md shadow-sm text-xs">
-        {filteredTransactions.length} orders
-      </div>
-
-      {/* Map Container */}
-      <div className="h-full rounded-lg overflow-hidden border border-gray-200">
-        <MapContainer
-          center={center as L.LatLngExpression}
-          zoom={12}
-          style={{ height: '100%', width: '100%' }}
-        >
-          {/* Use Leaflet's built-in layer control instead */}
-          <LayersControl position="topright">
-            <BaseLayer checked={currentBaseLayer === "osm"} name="OpenStreetMap">
-              <TileLayer
-                attribution={mapLayers.osm.attribution}
-                url={mapLayers.osm.url}
-              />
-            </BaseLayer>
-            <BaseLayer checked={currentBaseLayer === "satellite"} name="Satellite">
-              <TileLayer
-                attribution={mapLayers.satellite.attribution}
-                url={mapLayers.satellite.url}
-              />
-            </BaseLayer>
-            <BaseLayer checked={currentBaseLayer === "Topographic"} name="Topographic">
-              <TileLayer
-                attribution={mapLayers.Topographic.attribution}
-                url={mapLayers.Topographic.url}
-              />
-            </BaseLayer>
-            <BaseLayer checked={currentBaseLayer === "dark"} name="Dark Mode">
-              <TileLayer
-                attribution={mapLayers.dark.attribution}
-                url={mapLayers.dark.url}
-              />
-            </BaseLayer>
-          </LayersControl>
-          
-          {/* Component to fly to a location when search is performed */}
-          <FlyToLocation position={flyToTarget} />
-          
-          {/* Markers for transactions */}
-          {filteredTransactions.map((transaction) => {
-            // Only display transactions from users with location data
-            if (!transaction.user || !transaction.user.location_lat || !transaction.user.location_long) {
-              return null;
-            }
+      {/* Filter button - opens filter popover */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="bg-white shadow-md flex gap-2">
+            <Filter className="h-4 w-4" />
+            <span className="hidden sm:inline">Filter</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-4 z-[2000]" align="start">
+          <div className="space-y-4">
+            <h3 className="font-medium text-sm">Filter Orders</h3>
             
-            return (
-              <Marker 
-                key={transaction.id}
-                position={[transaction.user.location_lat, transaction.user.location_long]} 
-                icon={icon}
-              >
-                <Popup className="transaction-popup" minWidth={280} maxWidth={320}>
-                  <div className="p-1">
-                    <h3 className="font-bold text-md border-b pb-2 mb-2">
-                      Order #{transaction.id}
-                    </h3>
+            {/* Status Filter */}
+            
+            
+            {/* Price Range Filter */}
+            <div>
+              <label className="text-sm font-medium mb-1 block">Price Range (IDR)</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500">Min</label>
+                  <Input
+                    type="number"
+                    placeholder="Min price"
+                    value={priceRangeFilter[0] === null ? '' : priceRangeFilter[0]}
+                    onChange={(e) => {
+                      const value = e.target.value === '' ? null : Number(e.target.value);
+                      setPriceRangeFilter([value, priceRangeFilter[1]]);
+                    }}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Max</label>
+                  <Input
+                    type="number"
+                    placeholder="Max price"
+                    value={priceRangeFilter[1] === null ? '' : priceRangeFilter[1]}
+                    onChange={(e) => {
+                      const value = e.target.value === '' ? null : Number(e.target.value);
+                      setPriceRangeFilter([priceRangeFilter[0], value]);
+                    }}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Date Range Filter */}
+            <div>
+              <label className="text-sm font-medium mb-1 block">Date Range</label>
+              <div className="space-y-2">
+                <Calendar
+                  mode="range"
+                  selected={{
+                    from: dateRangeFilter[0] || undefined,
+                    to: dateRangeFilter[1] || undefined
+                  }}
+                  onSelect={(range) => 
+                    setDateRangeFilter([
+                      range?.from || null,
+                      range?.to || null
+                    ])
+                  }
+                  className="border rounded-md p-0"
+                />
+              </div>
+            </div>
+            
+            {/* Reset Button */}
+            <Button 
+              variant="outline" 
+              onClick={resetFilters} 
+              className="w-full"
+            >
+              Reset Filters
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Reset button (shows only when filters are applied) */}
+      {(statusFilter || dateRangeFilter[0] || dateRangeFilter[1] || priceRangeFilter[0] || priceRangeFilter[1] || searchQuery) && (
+        <Button 
+          variant="ghost" 
+          onClick={resetFilters}
+          className="bg-white shadow-md"
+          size="icon"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+    
+    {/* Results counter */}
+    <div className="absolute top-22 sm:top-8 right-16 z-[1000] bg-white px-2 py-1 rounded-md shadow-sm text-xs">
+      {filteredTransactions.length} orders
+    </div>
+    
+    {/* Active Price Filters Display */}
+    {(priceRangeFilter[0] !== null || priceRangeFilter[1] !== null) && (
+      <div className="absolute top-22 sm:top-14 right-16 z-[1000] bg-white px-2 py-1 rounded-md shadow-sm text-xs flex gap-2">
+        <span>Price Range:</span>
+        {priceRangeFilter[0] !== null && <span>Min: {formatCurrency(priceRangeFilter[0])}</span>}
+        {priceRangeFilter[0] !== null && priceRangeFilter[1] !== null && <span>-</span>}
+        {priceRangeFilter[1] !== null && <span>Max: {formatCurrency(priceRangeFilter[1])}</span>}
+      </div>
+    )}
+
+    {/* Map Container */}
+    <div className="h-full rounded-lg overflow-hidden border border-gray-200">
+      <MapContainer
+        center={center as L.LatLngExpression}
+        zoom={12}
+        style={{ height: '100%', width: '100%' }}
+      >
+        {/* Use Leaflet's built-in layer control instead */}
+        <LayersControl position="topright">
+          <BaseLayer checked={currentBaseLayer === "osm"} name="OpenStreetMap">
+            <TileLayer
+              attribution={mapLayers.osm.attribution}
+              url={mapLayers.osm.url}
+            />
+          </BaseLayer>
+          <BaseLayer checked={currentBaseLayer === "satellite"} name="Satellite">
+            <TileLayer
+              attribution={mapLayers.satellite.attribution}
+              url={mapLayers.satellite.url}
+            />
+          </BaseLayer>
+          <BaseLayer checked={currentBaseLayer === "Topographic"} name="Topographic">
+            <TileLayer
+              attribution={mapLayers.Topographic.attribution}
+              url={mapLayers.Topographic.url}
+            />
+          </BaseLayer>
+          <BaseLayer checked={currentBaseLayer === "dark"} name="Dark Mode">
+            <TileLayer
+              attribution={mapLayers.dark.attribution}
+              url={mapLayers.dark.url}
+            />
+          </BaseLayer>
+        </LayersControl>
+        
+        {/* Component to fly to a location when search is performed */}
+        <FlyToLocation position={flyToTarget} />
+        
+        {/* Markers for transactions */}
+        {filteredTransactions.map((transaction) => {
+          // Only display transactions from users with location data
+          if (!transaction.user || !transaction.user.location_lat || !transaction.user.location_long) {
+            return null;
+          }
+          
+          return (
+            <Marker 
+              key={transaction.id}
+              position={[transaction.user.location_lat, transaction.user.location_long]} 
+              icon={icon}
+            >
+              <Popup className="transaction-popup" minWidth={280} maxWidth={320}>
+                <div className="p-1">
+                  <h3 className="font-bold text-md border-b pb-2 mb-2">
+                    Order #{transaction.id}
+                  </h3>
+                  
+                  <div className="text-sm space-y-2">
+                    <div>
+                      <p className="font-semibold">Customer</p>
+                      <p>{transaction.user.username}</p>
+                      <p>{transaction.user.phone}</p>
+                    </div>
                     
-                    <div className="text-sm space-y-2">
+                    <div>
+                      <p className="font-semibold">Address</p>
+                      <p className="text-xs">
+                        {addresses[transaction.id] || transaction.user.address || 'No address available'}
+                      </p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <p className="font-semibold">Customer</p>
-                        <p>{transaction.user.username}</p>
-                        <p>{transaction.user.phone}</p>
+                        <p className="font-semibold">Date</p>
+                        <p>{formatDate(transaction.tanggal_transaksi)}</p>
                       </div>
-                      
                       <div>
-                        <p className="font-semibold">Address</p>
-                        <p className="text-xs">
-                          {addresses[transaction.id] || transaction.user.address || 'No address available'}
+                        <p className="font-semibold">Status</p>
+                        <p className={`${
+                          transaction.status === 'completed' ? 'text-green-600' : 
+                          transaction.status === 'cancelled' ? 'text-red-600' : 
+                          'text-yellow-600'
+                        }`}>
+                          {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                         </p>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <p className="font-semibold">Date</p>
-                          <p>{formatDate(transaction.tanggal_transaksi)}</p>
-                        </div>
-                        <div>
-                          <p className="font-semibold">Status</p>
-                          <p className={`${
-                            transaction.status === 'completed' ? 'text-green-600' : 
-                            transaction.status === 'cancelled' ? 'text-red-600' : 
-                            'text-yellow-600'
-                          }`}>
-                            {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <p className="font-semibold">Coordinates</p>
-                        <p className="text-xs">
-                          {transaction.user.location_lat.toFixed(6)}, {transaction.user.location_long.toFixed(6)}
-                        </p>
-                      </div>
-                      
-                      <div>
-                        <p className="font-semibold">Items</p>
-                        <ul className="list-disc list-inside text-xs">
-                          {transaction.items.map(item => (
-                            <li key={item.id}>
-                              {item.name} (x{item.quantity}) - {formatCurrency(item.subtotal)}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      
-                      <div className="font-semibold text-right border-t pt-2 mt-2">
-                        Total: {formatCurrency(transaction.totalAmount)}
-                      </div>
-                      
-                      <div className="text-center mt-2">
-                        <a 
-                          href={`/admin/transaksi/${transaction.id}`}
-                          className="text-[#3528AB] hover:underline text-xs"
-                        >
-                          View Complete Details →
-                        </a>
                       </div>
                     </div>
+                    
+                    <div>
+                      <p className="font-semibold">Coordinates</p>
+                      <p className="text-xs">
+                        {transaction.user.location_lat.toFixed(6)}, {transaction.user.location_long.toFixed(6)}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="font-semibold">Items</p>
+                      <ul className="list-disc list-inside text-xs">
+                        {transaction.items.map(item => (
+                          <li key={item.id}>
+                            {item.name} (x{item.quantity}) - {formatCurrency(item.subtotal)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    
+                    <div className="font-semibold text-right border-t pt-2 mt-2">
+                      Total: {formatCurrency(transaction.totalAmount)}
+                    </div>
+                    
+                    <div className="text-center mt-2">
+                      <a 
+                        href={`/admin/transaksi/${transaction.id}`}
+                        className="text-[#3528AB] hover:underline text-xs"
+                      >
+                        View Complete Details →
+                      </a>
+                    </div>
                   </div>
-                </Popup>
-              </Marker>
-            );
-          })}
-        </MapContainer>
-      </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
     </div>
-  );
+  </div>
+);
 }
