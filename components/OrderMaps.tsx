@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, LayersControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { format, parseISO, isWithinInterval, addDays  } from 'date-fns';
@@ -27,7 +27,9 @@ import {
 } from "@/components/ui/drawer";
 import { Calendar } from '@/components/ui/calendar';
 
-// Fix for Leaflet icon issues (keeping your existing code)
+const { BaseLayer } = LayersControl;
+
+// Fix for Leaflet icon issues
 const icon = L.icon({
   iconUrl: '/icons/marker-icon-2x.png',
   shadowUrl: '/icons/marker-shadow.png',
@@ -37,7 +39,7 @@ const icon = L.icon({
   shadowSize: [41, 41]
 });
 
-// Define transaction interface (keeping your existing code)
+// Define transaction interface
 interface Transaction {
   id: number;
   user: {
@@ -104,9 +106,43 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
     osm_id?: number;
   }
   
+  // Define map layers
+  const mapLayers = {
+    osm: {
+      name: "OpenStreetMap",
+      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    },
+    satellite: {
+      name: "Satellite",
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics, and the GIS User Community'
+    },
+    Topographic: {
+      name: "Topographic",
+      url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+      attribution: '&copy; <a href="https://opentopomap.org">OpenTopoMap</a> contributors'
+    },
+    dark: {
+      name: "Dark Mode",
+      url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    }
+  };
+
+  // Define map layer type
+  type MapLayerKey = 'osm' | 'satellite' | 'Topographic' | 'dark';
+  
+  // Set current layer state
+  const [currentBaseLayer, ] = useState<MapLayerKey>("osm");
+  
+  useEffect(() => {
+    console.log("Map layer changed to:", currentBaseLayer);
+  }, [currentBaseLayer]);
+  
   const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
   
-  // Format currency helper (keeping your existing code)
+  // Format currency helper
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', { 
       style: 'currency', 
@@ -115,7 +151,7 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
     }).format(amount);
   };
 
-  // Format date helper (keeping your existing code)
+  // Format date helper
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'd MMM yyyy', { locale: id });
@@ -125,7 +161,7 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
     }
   };
   
-  // Fetch addresses for transactions (keeping your existing code)
+  // Fetch addresses for transactions
   useEffect(() => {
     const getAddresses = async () => {
       const addressData: Record<number, string> = {};
@@ -159,7 +195,7 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
     }
   }, [transactions]);
   
-  // Fetch all transactions (keeping your existing code)
+  // Fetch all transactions
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
@@ -325,6 +361,30 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
           )}
         </div>
 
+        {/* Layer Switcher Dropdown (keep for UI consistency, but it won't control the map) */}
+        {/* <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="bg-white shadow-md flex gap-2">
+              <Layers className="h-4 w-4" />
+              <span className="hidden sm:inline">Map Style</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {Object.entries(mapLayers).map(([key, layer]) => (
+              <DropdownMenuItem 
+                key={key}
+                className={currentBaseLayer === key ? "bg-gray-100 font-medium" : ""}
+                onClick={() => {
+                  console.log("Changing to layer:", key);
+                  setCurrentBaseLayer(key as MapLayerKey);
+                }}
+              >
+                {layer.name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu> */}
+
         {/* Filter button - opens filter drawer on mobile */}
         <Drawer>
           <DrawerTrigger asChild>
@@ -395,9 +455,6 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
           </DrawerContent>
         </Drawer>
 
-        {/* Desktop Filter Popover */}
-        
-
         {/* Reset button (shows only when filters are applied) */}
         {(statusFilter || dateRangeFilter[0] || dateRangeFilter[1] || searchQuery) && (
           <Button 
@@ -412,7 +469,7 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
       </div>
       
       {/* Results counter */}
-      <div className="absolute top-16 sm:top-12 right-4 z-[1000] bg-white px-2 py-1 rounded-md shadow-sm text-xs">
+      <div className="absolute top-22 sm:top-8 right-16 z-[1000] bg-white px-2 py-1 rounded-md shadow-sm text-xs">
         {filteredTransactions.length} orders
       </div>
 
@@ -423,14 +480,38 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
           zoom={12}
           style={{ height: '100%', width: '100%' }}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          {/* Use Leaflet's built-in layer control instead */}
+          <LayersControl position="topright">
+            <BaseLayer checked={currentBaseLayer === "osm"} name="OpenStreetMap">
+              <TileLayer
+                attribution={mapLayers.osm.attribution}
+                url={mapLayers.osm.url}
+              />
+            </BaseLayer>
+            <BaseLayer checked={currentBaseLayer === "satellite"} name="Satellite">
+              <TileLayer
+                attribution={mapLayers.satellite.attribution}
+                url={mapLayers.satellite.url}
+              />
+            </BaseLayer>
+            <BaseLayer checked={currentBaseLayer === "Topographic"} name="Topographic">
+              <TileLayer
+                attribution={mapLayers.Topographic.attribution}
+                url={mapLayers.Topographic.url}
+              />
+            </BaseLayer>
+            <BaseLayer checked={currentBaseLayer === "dark"} name="Dark Mode">
+              <TileLayer
+                attribution={mapLayers.dark.attribution}
+                url={mapLayers.dark.url}
+              />
+            </BaseLayer>
+          </LayersControl>
           
           {/* Component to fly to a location when search is performed */}
           <FlyToLocation position={flyToTarget} />
           
+          {/* Markers for transactions */}
           {filteredTransactions.map((transaction) => {
             // Only display transactions from users with location data
             if (!transaction.user || !transaction.user.location_lat || !transaction.user.location_long) {
@@ -444,7 +525,6 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
                 icon={icon}
               >
                 <Popup className="transaction-popup" minWidth={280} maxWidth={320}>
-                  {/* Your existing popup content */}
                   <div className="p-1">
                     <h3 className="font-bold text-md border-b pb-2 mb-2">
                       Order #{transaction.id}
@@ -481,7 +561,6 @@ export default function OrdersMap({ height = "600px", className = "" }: OrdersMa
                         </div>
                       </div>
                       
-                      {/* Rest of your existing popup content */}
                       <div>
                         <p className="font-semibold">Coordinates</p>
                         <p className="text-xs">
